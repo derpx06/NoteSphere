@@ -96,7 +96,8 @@ fun RegisterScreen(navController: NavController) {
                                     popUpTo("register") { inclusive = true }
                                 }
                             }
-                        }) {
+                        })
+                        {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "Back",
