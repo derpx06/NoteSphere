@@ -1,5 +1,6 @@
 package com.example.notesphere.viewmodels
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.PickVisualMediaRequest
@@ -8,11 +9,28 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.notesphere.ui.screens.login.UiState
-import kotlinx.coroutines.delay
+import com.example.notesphere.data.LoginRequest
+import com.example.notesphere.network.ApiService
+import com.example.notesphere.utils.AuthManager
+import com.example.notesphere.utils.uriToMultipart
 import kotlinx.coroutines.launch
 
-class LoginViewModel : ViewModel() {
+data class UiState(
+    val email: String = "",
+    val password: String = "",
+    val profileImageUri: String? = null,
+    val isEmailValid: Boolean = true,
+    val errorMessage: String = "",
+    val alertMessage: String = "",
+    val showAlert: Boolean = false,
+    val showBottomSheet: Boolean = false,
+    val isLoading: Boolean = false
+)
+
+class LoginViewModel(
+    private val apiService: ApiService,
+    private val authManager: AuthManager
+) : ViewModel() {
     private val _uiState = mutableStateOf(UiState())
     val uiState: State<UiState> = _uiState
 
@@ -61,17 +79,64 @@ class LoginViewModel : ViewModel() {
         )
     }
 
-    fun login(onSuccess: () -> Unit) {
+    fun login(context: Context, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            if (validateLogin()) {
-                _uiState.value = _uiState.value.copy(isLoading = true)
-                delay(1000)
+            if (!validateLogin()) return@launch
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val response = apiService.login(
+                    LoginRequest(
+                        email = _uiState.value.email,
+                        password = _uiState.value.password
+                    )
+                )
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val token = response.body()?.token
+                    if (token != null) {
+                        authManager.saveToken(token)
+                        _uiState.value.profileImageUri?.let { uriString ->
+                            uploadProfilePhoto(context, Uri.parse(uriString))
+                        }
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            showAlert = true,
+                            alertMessage = "Login successful!"
+                        )
+                        onSuccess()
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "Login failed: No token received"
+                        )
+                    }
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = response.body()?.message ?: "Login failed"
+                    )
+                }
+            } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    showAlert = true,
-                    alertMessage = "Login successful!"
+                    errorMessage = "Network error: ${e.message}"
                 )
-                onSuccess()
+            }
+        }
+    }
+
+    fun uploadProfilePhoto(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            val token = authManager.getToken() ?: return@launch showAlert("No token available")
+            try {
+                val multipart = uriToMultipart(context, uri)
+                val response = apiService.uploadProfilePhoto("Bearer $token", multipart)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    showAlert("Profile photo uploaded successfully")
+                } else {
+                    showAlert(response.body()?.message ?: "Failed to upload profile photo")
+                }
+            } catch (e: Exception) {
+                showAlert("Upload error: ${e.message}")
             }
         }
     }
@@ -101,8 +166,7 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    fun isValidEmail(email: String): Boolean {
+    private fun isValidEmail(email: String): Boolean {
         return email.matches(Regex("[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"))
     }
 }
-

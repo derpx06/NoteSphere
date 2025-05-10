@@ -12,7 +12,7 @@ import java.io.ByteArrayOutputStream
 fun uriToMultipart(context: Context, uri: Uri): MultipartBody.Part {
     val bitmap = BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
     val outputStream = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.JPEG, 50, outputStream) // Adjusted to 50% quality
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 20, outputStream) // Adjusted to 50% quality
 
     return MultipartBody.Part.createFormData(
         "profilePhoto",

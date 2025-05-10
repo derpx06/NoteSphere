@@ -1,14 +1,19 @@
 package com.example.notesphere.ui.components
 
 import android.Manifest
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,11 +24,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.notesphere.R
 import com.example.notesphere.utils.createImageUri
@@ -40,6 +47,7 @@ fun ProfileImageSection(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
 
     // Permission launchers
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -58,7 +66,7 @@ fun ProfileImageSection(
                 viewModel.showAlert("Failed to create image file")
             }
         } else {
-            viewModel.showAlert("Camera and storage permissions required")
+            showPermissionDialog = true
         }
     }
 
@@ -86,12 +94,25 @@ fun ProfileImageSection(
         viewModel.pickImageLauncher = pickImageLauncher
     }
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(),
+        label = "ProfileImageScale"
+    )
+
     Card(
         modifier = Modifier
-            .size(100.dp)
+            .size(96.dp)
             .clip(CircleShape)
-            .shadow(8.dp, CircleShape)
-            .clickable(enabled = isEditable) { viewModel.updateShowBottomSheet(true) },
+            .shadow(3.dp, CircleShape)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = isEditable
+            ) { viewModel.updateShowBottomSheet(true) },
         shape = CircleShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -103,7 +124,11 @@ fun ProfileImageSection(
         ) {
             if (viewModel.uiState.value.profileImageUri != null) {
                 Image(
-                    painter = rememberAsyncImagePainter(viewModel.uiState.value.profileImageUri),
+                    painter = rememberAsyncImagePainter(
+                        model = viewModel.uiState.value.profileImageUri,
+                        placeholder = painterResource(R.drawable.ic_default_profile),
+                        error = painterResource(R.drawable.ic_default_profile)
+                    ),
                     contentDescription = "Profile Image",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -121,18 +146,21 @@ fun ProfileImageSection(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .size(32.dp)
+                        .padding(6.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .clickable { viewModel.updateShowBottomSheet(true) },
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { viewModel.updateShowBottomSheet(true) },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_edit),
                         contentDescription = "Edit Profile Image",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -144,27 +172,27 @@ fun ProfileImageSection(
             onDismissRequest = { viewModel.updateShowBottomSheet(false) },
             sheetState = sheetState,
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .animateContentSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
                     text = "Select Profile Photo",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             scope.launch {
                                 sheetState.hide()
@@ -178,8 +206,13 @@ fun ProfileImageSection(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(8.dp),
-                        shape = RoundedCornerShape(12.dp)
+                            .height(100.dp)
+                            .padding(horizontal = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -187,15 +220,16 @@ fun ProfileImageSection(
                                 contentDescription = "Camera",
                                 modifier = Modifier.size(32.dp)
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Camera",
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(top = 4.dp)
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
 
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             scope.launch {
                                 sheetState.hide()
@@ -204,8 +238,13 @@ fun ProfileImageSection(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(8.dp),
-                        shape = RoundedCornerShape(12.dp)
+                            .height(100.dp)
+                            .padding(horizontal = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -213,22 +252,59 @@ fun ProfileImageSection(
                                 contentDescription = "Gallery",
                                 modifier = Modifier.size(32.dp)
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Gallery",
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(top = 4.dp)
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("Permissions Needed", style = MaterialTheme.typography.titleMedium) },
+            text = { Text("Camera and storage permissions are required to select a profile photo. Please enable them in your device settings.", style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }) {
+                    Text("Go to Settings", style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp,
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        )
     }
 
     if (viewModel.uiState.value.showAlert) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissAlert() },
-            title = { Text("Notice", style = MaterialTheme.typography.titleMedium) },
+            title = { Text("Error", style = MaterialTheme.typography.titleMedium) },
             text = { Text(viewModel.uiState.value.alertMessage, style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 TextButton(onClick = { viewModel.dismissAlert() }) {
@@ -237,6 +313,7 @@ fun ProfileImageSection(
             },
             shape = RoundedCornerShape(12.dp),
             containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp,
             icon = {
                 Icon(
                     imageVector = Icons.Default.Error,

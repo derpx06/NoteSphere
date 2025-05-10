@@ -1,13 +1,12 @@
 package com.example.notesphere.ui.screens.login
 
-import android.net.Uri
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -42,321 +41,366 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.notesphere.ui.components.CustomTextField
 import com.example.notesphere.ui.components.ProfileImageSection
-import com.example.notesphere.utils.uriToMultipart
+import com.example.notesphere.utils.AuthManager
+import com.example.notesphere.utils.ViewModelFactory
 import com.example.notesphere.viewmodels.LoginViewModel
 import com.example.notesphere.viewmodels.RegisterViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
     val viewModel: RegisterViewModel = viewModel()
-    val loginViewModel: LoginViewModel = viewModel()
+    val context = LocalContext.current
+    val loginViewModel: LoginViewModel = viewModel(
+        factory = ViewModelFactory(authManager = AuthManager(context))
+    )
     val user by viewModel.user
     val errorMessage by viewModel.errorMessage
+    val isLoading by viewModel.isLoading
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
-    // Animation state for card
+    // Animation state for card expansion
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         isVisible = true
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp),
-                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 8.dp
-            ) {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            text = "NoteSphere",
-                            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 26.sp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            maxLines = 1
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            if (navController.previousBackStackEntry != null) {
-                                navController.popBackStack()
-                            } else {
-                                navController.navigate("login") {
-                                    popUpTo("register") { inclusive = true }
-                                }
-                            }
-                        })
-                        {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Transparent
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
+                        MaterialTheme.colorScheme.background
                     )
                 )
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Box(
+            ),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(5.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center
+                .padding(top = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = fadeIn(animationSpec = tween(800)) + scaleIn(animationSpec = tween(800)),
-                exit = fadeOut(animationSpec = tween(400))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .shadow(16.dp, RoundedCornerShape(16.dp)),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = expandVertically(animationSpec = spring()),
+                    exit = shrinkVertically(animationSpec = spring())
                 ) {
-                    LazyColumn(
+                    IconButton(onClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = expandVertically(animationSpec = spring()),
+                    exit = shrinkVertically(animationSpec = spring())
+                ) {
+                    Text(
+                        text = "NoteSphere",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 36.sp),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 24.dp, top = 10.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(48.dp)) // Balance the layout
+            }
+
+            AnimatedContent(
+                targetState = isVisible,
+                transitionSpec = {
+                    expandVertically(animationSpec = spring()) togetherWith shrinkVertically(animationSpec = spring())
+                },
+                label = "CardAnimation"
+            ) { visible ->
+                if (visible) {
+                    Card(
                         modifier = Modifier
-                            .padding(24.dp)
-                            .fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp)
+                            .shadow(4.dp, RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
-                        item {
-                            // Profile Image (Optional)
-                            ProfileImageSection(viewModel = loginViewModel, isEditable = true)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Profile photo is optional",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        item {
-                            // Username Field
-                            CustomTextField(
-                                value = user.username,
-                                onValueChange = { viewModel.updateUsername(it) },
-                                label = "Username",
-                                isError = user.username.isNotEmpty() && user.username.length < 3,
-                                trailingIcon = {
-                                    if (user.username.isNotEmpty() && user.username.length < 3) {
-                                        Icon(
-                                            imageVector = Icons.Default.Error,
-                                            contentDescription = "Invalid username",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                            )
-                        }
-
-                        item {
-                            // Email Field
-                            CustomTextField(
-                                value = user.email,
-                                onValueChange = { viewModel.updateEmail(it) },
-                                label = "Email",
-                                isError = user.email.isNotEmpty() && !isValidEmail(user.email),
-                                trailingIcon = {
-                                    if (user.email.isNotEmpty() && !isValidEmail(user.email)) {
-                                        Icon(
-                                            imageVector = Icons.Default.Error,
-                                            contentDescription = "Invalid email",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                            )
-                        }
-
-                        item {
-                            // Password Field
-                            CustomTextField(
-                                value = user.password,
-                                onValueChange = { viewModel.updatePassword(it) },
-                                label = "Password",
-                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                isError = user.password.isNotEmpty() && user.password.length < 6,
-                                trailingIcon = {
-                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                        Icon(
-                                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                            )
-                        }
-
-                        item {
-                            // Confirm Password Field
-                            CustomTextField(
-                                value = confirmPassword,
-                                onValueChange = {
-                                    confirmPassword = it
-                                    confirmPasswordError = it != user.password
-                                },
-                                label = "Confirm Password",
-                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                isError = confirmPasswordError,
-                                trailingIcon = {
-                                    if (confirmPasswordError) {
-                                        Icon(
-                                            imageVector = Icons.Default.Error,
-                                            contentDescription = "Passwords do not match",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                            )
-                        }
-
-                        item {
-                            // Password Strength Indicator
-                            if (user.password.isNotEmpty()) {
-                                val strength = when {
-                                    user.password.length >= 12 -> "Strong"
-                                    user.password.length >= 8 -> "Medium"
-                                    else -> "Weak"
-                                }
-                                val color = when (strength) {
-                                    "Strong" -> Color(0xFF4CAF50)
-                                    "Medium" -> Color(0xFFFFC107)
-                                    "Weak" -> Color(0xFFF44336)
-                                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                }
-                                Text(
-                                    text = "Password Strength: $strength",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = color,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                )
-                            }
-                        }
-
-                        item {
-                            // Role Dropdown
-                            RoleDropdown(
-                                selectedRole = user.role,
-                                onRoleSelected = { viewModel.updateRole(it) }
-                            )
-                        }
-
-                        item {
-                            // College/University Field
-                            CustomTextField(
-                                value = user.college,
-                                onValueChange = { viewModel.updateCollege(it) },
-                                label = "College/University",
-                                isError = user.college.isNotEmpty() && user.college.length < 3,
-                                trailingIcon = {
-                                    if (user.college.isNotEmpty() && user.college.length < 3) {
-                                        Icon(
-                                            imageVector = Icons.Default.Error,
-                                            contentDescription = "Invalid college name",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                            )
-                        }
-
-                        item {
-                            // Error Message
-                            if (errorMessage.isNotEmpty()) {
-                                Text(
-                                    text = errorMessage,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                )
-                            }
-                        }
-
-                        item {
-                            // Sign Up Button
-                            val interactionSource = remember { MutableInteractionSource() }
-                            val isPressed by interactionSource.collectIsPressedAsState()
-                            val buttonScale by animateFloatAsState(
-                                targetValue = if (isPressed) 0.95f else 1f,
-                                animationSpec = spring(),
-                                label = "ButtonScale"
-                            )
-
-                            Button(
-                                onClick = {
-                                    keyboardController?.hide()
-                                    if (viewModel.validateRegistration(confirmPassword)) {
-                                        // Simulate profile photo upload
-                                        loginViewModel.uiState.value.profileImageUri?.let { uriString ->
-                                            val uri = Uri.parse(uriString)
-                                            uriToMultipart(context, uri) // Simulate upload
-                                        }
-                                        scope.launch {
-                                            loginViewModel.showAlert("Registration successful!")
-                                            delay(1000)
-                                            navController.navigate("home") {
-                                                popUpTo("register") { inclusive = true }
-                                            }
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .scale(buttonScale),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                interactionSource = interactionSource
-                            ) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .padding(24.dp)
+                                .fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            item {
                                 Text(
                                     text = "Sign Up",
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.headlineSmall.copy(fontSize = 28.sp),
+                                    color = MaterialTheme.colorScheme.primary
                                 )
+                            }
+
+                            item {
+                                ProfileImageSection(viewModel = loginViewModel, isEditable = true)
+                                Text(
+                                    text = "Profile photo is optional",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            item {
+                                CustomTextField(
+                                    value = user.username,
+                                    onValueChange = { viewModel.updateUsername(it) },
+                                    label = "Username",
+                                    isError = user.username.isNotEmpty() && user.username.length < 3,
+                                    trailingIcon = {
+                                        if (user.username.isNotEmpty() && user.username.length < 3) {
+                                            Icon(
+                                                imageVector = Icons.Default.Error,
+                                                contentDescription = "Invalid username",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                                )
+                            }
+
+                            item {
+                                CustomTextField(
+                                    value = user.email,
+                                    onValueChange = { viewModel.updateEmail(it) },
+                                    label = "Email",
+                                    isError = user.email.isNotEmpty() && !isValidEmail(user.email),
+                                    trailingIcon = {
+                                        if (user.email.isNotEmpty() && !isValidEmail(user.email)) {
+                                            Icon(
+                                                imageVector = Icons.Default.Error,
+                                                contentDescription = "Invalid email",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                                )
+                            }
+
+                            item {
+                                CustomTextField(
+                                    value = user.password,
+                                    onValueChange = { viewModel.updatePassword(it) },
+                                    label = "Password",
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    isError = user.password.isNotEmpty() && user.password.length < 6,
+                                    trailingIcon = {
+                                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                            Icon(
+                                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                                )
+                            }
+
+                            item {
+                                CustomTextField(
+                                    value = confirmPassword,
+                                    onValueChange = {
+                                        confirmPassword = it
+                                        confirmPasswordError = it != user.password
+                                    },
+                                    label = "Confirm Password",
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    isError = confirmPasswordError,
+                                    trailingIcon = {
+                                        if (confirmPasswordError) {
+                                            Icon(
+                                                imageVector = Icons.Default.Error,
+                                                contentDescription = "Passwords do not match",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                                )
+                            }
+
+                            item {
+                                if (user.password.isNotEmpty()) {
+                                    val strength = when {
+                                        user.password.length >= 12 -> "Strong"
+                                        user.password.length >= 8 -> "Medium"
+                                        else -> "Weak"
+                                    }
+                                    val color = when (strength) {
+                                        "Strong" -> Color(0xFF4CAF50)
+                                        "Medium" -> Color(0xFFFFC107)
+                                        "Weak" -> Color(0xFFF44336)
+                                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    }
+                                    Text(
+                                        text = "Password Strength: $strength",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = color,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                }
+                            }
+
+                            item {
+                                RoleDropdown(
+                                    selectedRole = user.role,
+                                    onRoleSelected = { viewModel.updateRole(it) }
+                                )
+                            }
+
+                            item {
+                                CustomTextField(
+                                    value = user.college,
+                                    onValueChange = { viewModel.updateCollege(it) },
+                                    label = "College/University",
+                                    isError = user.college.isNotEmpty() && user.college.length < 3,
+                                    trailingIcon = {
+                                        if (user.college.isNotEmpty() && user.college.length < 3) {
+                                            Icon(
+                                                imageVector = Icons.Default.Error,
+                                                contentDescription = "Invalid college name",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                                )
+                            }
+
+                            item {
+                                if (errorMessage.isNotEmpty()) {
+                                    Text(
+                                        text = errorMessage,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                }
+                            }
+
+                            item {
+                                val interactionSource = remember { MutableInteractionSource() }
+                                val isPressed by interactionSource.collectIsPressedAsState()
+                                val buttonScale by animateFloatAsState(
+                                    targetValue = if (isPressed) 0.95f else 1f,
+                                    animationSpec = spring(),
+                                    label = "ButtonScale"
+                                )
+
+                                Button(
+                                    onClick = {
+                                        keyboardController?.hide()
+                                        if (viewModel.validateRegistration(confirmPassword)) {
+                                            viewModel.register {
+                                                loginViewModel.updateEmail(user.email)
+                                                loginViewModel.updatePassword(user.password)
+                                                loginViewModel.login(context) {
+                                                    navController.navigate("home") {
+                                                        popUpTo("register") { inclusive = true }
+                                                        launchSingleTop = true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .scale(buttonScale),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    interactionSource = interactionSource,
+                                    enabled = !isLoading
+                                ) {
+                                    if (isLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Sign Up",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                }
+                            }
+
+                            item {
+                                TextButton(
+                                    onClick = {
+                                        navController.navigate("login") {
+                                            popUpTo("register") { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        text = "Already have an account? Sign In",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                     }
                 }
+            }
+
+            if (loginViewModel.uiState.value.showAlert) {
+                AlertDialog(
+                    onDismissRequest = { loginViewModel.dismissAlert() },
+                    title = { Text("Notice", style = MaterialTheme.typography.titleMedium) },
+                    text = { Text(loginViewModel.uiState.value.alertMessage, style = MaterialTheme.typography.bodyMedium) },
+                    confirmButton = {
+                        TextButton(onClick = { loginViewModel.dismissAlert() }) {
+                            Text("OK", style = MaterialTheme.typography.labelLarge)
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 4.dp
+                )
             }
         }
     }

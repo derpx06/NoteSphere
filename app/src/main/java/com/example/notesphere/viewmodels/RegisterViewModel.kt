@@ -4,6 +4,9 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.notesphere.data.RegisterRequest
+import com.example.notesphere.network.ApiService
+import com.example.notesphere.network.RetrofitClient
 import kotlinx.coroutines.launch
 
 data class User(
@@ -15,12 +18,17 @@ data class User(
     val profilePhotoUri: String? = null
 )
 
-class RegisterViewModel : ViewModel() {
+class RegisterViewModel(
+    private val apiService: ApiService = RetrofitClient.apiService
+) : ViewModel() {
     private val _user = mutableStateOf(User())
     val user: State<User> = _user
 
     private val _errorMessage = mutableStateOf("")
     val errorMessage: State<String> = _errorMessage
+
+    private val _isLoading = mutableStateOf(false)
+    val isLoading: State<Boolean> = _isLoading
 
     fun updateUsername(username: String) {
         _user.value = _user.value.copy(username = username)
@@ -35,7 +43,7 @@ class RegisterViewModel : ViewModel() {
     }
 
     fun updateRole(role: String) {
-        _user.value = _user.value.copy(role = role)
+        _user.value = _user.value.copy(role = role.toLowerCase())
     }
 
     fun updateCollege(college: String) {
@@ -97,8 +105,30 @@ class RegisterViewModel : ViewModel() {
 
     fun register(onSuccess: () -> Unit) {
         viewModelScope.launch {
-            // Simulate registration (no DB)
-            onSuccess()
+            if (!validateRegistration(_user.value.password)) return@launch
+            _isLoading.value = true
+            try {
+                val response = apiService.register(
+                    RegisterRequest(
+                        username = _user.value.username,
+                        email = _user.value.email,
+                        password = _user.value.password,
+                        role = _user.value.role,
+                        college = _user.value.college
+                    )
+                )
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _errorMessage.value = ""
+                    _isLoading.value = false
+                    onSuccess()
+                } else {
+                    _errorMessage.value = response.body()?.message ?: "Registration failed"
+                    _isLoading.value = false
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Network error: ${e.message}"
+                _isLoading.value = false
+            }
         }
     }
 
