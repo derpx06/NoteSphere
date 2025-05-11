@@ -1,30 +1,37 @@
 package com.example.notesphere.utils
 
-import androidx.compose.runtime.Composable
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.notesphere.network.RetrofitClient
 import com.example.notesphere.viewmodels.LoginViewModel
+import com.example.notesphere.viewmodels.NotesViewModel
+import com.example.notesphere.viewmodels.RegisterViewModel
 
 class ViewModelFactory(
-    private val authManager: AuthManager
+    private val context: Context
 ) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return LoginViewModel(
-                apiService = RetrofitClient.apiService,
-                authManager = authManager
-            ) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
-    }
-}
 
-@Composable
-inline fun <reified VM : ViewModel> viewModelFactory(
-    factory: ViewModelProvider.Factory
-): VM {
-    return viewModel(factory = factory)
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        Log.d("ViewModelFactory", "Creating ViewModel for ${modelClass.simpleName}")
+        return when {
+            modelClass.isAssignableFrom(LoginViewModel::class.java) -> {
+                Log.d("ViewModelFactory", "Creating LoginViewModel")
+                val authManager = AuthManager(context)
+                val apiService = RetrofitClient.getApiService(authManager)
+                LoginViewModel(apiService, authManager) as T
+            }
+            modelClass.isAssignableFrom(RegisterViewModel::class.java) -> {
+                Log.d("ViewModelFactory", "Creating RegisterViewModel")
+                RegisterViewModel(RetrofitClient.publicApiService) as T
+            }
+            modelClass.isAssignableFrom(NotesViewModel::class.java) -> {
+                Log.d("ViewModelFactory", "Creating NotesViewModel")
+                NotesViewModel(context) as T
+            }
+            else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        }
+    }
 }

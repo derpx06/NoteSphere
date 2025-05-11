@@ -1,5 +1,6 @@
 package com.example.notesphere.ui.screens.login
 
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,7 +42,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.notesphere.ui.components.CustomTextField
 import com.example.notesphere.ui.components.ProfileImageSection
-import com.example.notesphere.utils.AuthManager
 import com.example.notesphere.utils.ViewModelFactory
 import com.example.notesphere.viewmodels.LoginViewModel
 import com.example.notesphere.viewmodels.RegisterViewModel
@@ -49,11 +49,12 @@ import com.example.notesphere.viewmodels.RegisterViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
-    val viewModel: RegisterViewModel = viewModel()
     val context = LocalContext.current
+    val viewModel: RegisterViewModel = viewModel()
     val loginViewModel: LoginViewModel = viewModel(
-        factory = ViewModelFactory(authManager = AuthManager(context))
+        factory = ViewModelFactory(context = context)
     )
+    Log.d("RegisterScreen", "ViewModels created: RegisterViewModel=$viewModel, LoginViewModel=$loginViewModel")
     val user by viewModel.user
     val errorMessage by viewModel.errorMessage
     val isLoading by viewModel.isLoading
@@ -62,7 +63,6 @@ fun RegisterScreen(navController: NavController) {
     var confirmPasswordError by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Animation state for card expansion
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         isVisible = true
@@ -128,7 +128,7 @@ fun RegisterScreen(navController: NavController) {
                         modifier = Modifier.padding(bottom = 24.dp, top = 10.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(48.dp)) // Balance the layout
+                Spacer(modifier = Modifier.width(48.dp))
             }
 
             AnimatedContent(
@@ -326,11 +326,14 @@ fun RegisterScreen(navController: NavController) {
                                 Button(
                                     onClick = {
                                         keyboardController?.hide()
+                                        Log.d("RegisterScreen", "Sign Up clicked")
                                         if (viewModel.validateRegistration(confirmPassword)) {
                                             viewModel.register {
+                                                Log.d("RegisterScreen", "Registration successful, attempting login")
                                                 loginViewModel.updateEmail(user.email)
                                                 loginViewModel.updatePassword(user.password)
                                                 loginViewModel.login(context) {
+                                                    Log.d("RegisterScreen", "Login successful, navigating to home")
                                                     navController.navigate("home") {
                                                         popUpTo("register") { inclusive = true }
                                                         launchSingleTop = true
@@ -369,6 +372,7 @@ fun RegisterScreen(navController: NavController) {
                             item {
                                 TextButton(
                                     onClick = {
+                                        Log.d("RegisterScreen", "Navigating to login")
                                         navController.navigate("login") {
                                             popUpTo("register") { inclusive = true }
                                             launchSingleTop = true
