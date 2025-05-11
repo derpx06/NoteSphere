@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">NoteSphere</string>
+    <string name="Star">star \n</string>
+    <string name="search_notes">Search notes...</string>
+    <string name="clear">Clear search</string>
+    <string name="sort">Sort options</string>
+    <string name="retry">Try Again</string>
+    <string name="no_notes_found">No Notes Found</string>
+    <string name="create_or_check_back">Create a new note or check back later</string>
+    <string name="title_asc">Title (A-Z)</string>
+    <string name="title_desc">Title (Z-A)</string>
+    <string name="date_asc">Oldest First</string>
+    <string name="date_desc">Newest First</string>
+    <string name="star_note">Star this note</string>
+    <string name="profile">Profile\n</string>
 </resources>

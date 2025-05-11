@@ -1,28 +1,45 @@
 package com.example.notesphere.ui.screens.notes
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.notesphere.data.FilePath
 import com.example.notesphere.data.Note
 import com.example.notesphere.network.RetrofitClient
 import com.example.notesphere.utils.ViewModelFactory
@@ -49,28 +66,54 @@ fun NoteDetailsScreen(navController: NavController, noteId: String) {
                 title = {
                     Text(
                         text = note?.title ?: "Loading...",
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 },
                 actions = {
+                    var isStarAnimating by remember { mutableStateOf(false) }
+                    val starRotation by animateFloatAsState(
+                        targetValue = if (isStarAnimating) 360f else 0f,
+                        animationSpec = tween(300),
+                        finishedListener = { isStarAnimating = false },
+                        label = "Star Rotation"
+                    )
                     IconButton(
-                        onClick = { viewModel.starNote(noteId) },
-                        enabled = note != null
+                        onClick = {
+                            isStarAnimating = true
+                            viewModel.starNote(noteId)
+                        },
+                        enabled = note != null,
+                        modifier = Modifier.rotate(starRotation)
                     ) {
                         Icon(
                             Icons.Default.Star,
                             contentDescription = "Star",
-                            tint = if (note?.starredBy?.isNotEmpty() == true) Color.Yellow else MaterialTheme.colorScheme.onSurface
+                            tint = if (note?.starredBy?.isNotEmpty() == true) Color.Yellow else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
+                    var isShareAnimating by remember { mutableStateOf(false) }
+                    val shareRotation by animateFloatAsState(
+                        targetValue = if (isShareAnimating) 360f else 0f,
+                        animationSpec = tween(300),
+                        finishedListener = { isShareAnimating = false },
+                        label = "Share Rotation"
+                    )
                     IconButton(
                         onClick = {
+                            isShareAnimating = true
                             note?.let {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
@@ -79,11 +122,23 @@ fun NoteDetailsScreen(navController: NavController, noteId: String) {
                                 context.startActivity(Intent.createChooser(shareIntent, "Share Note"))
                             }
                         },
-                        enabled = note != null
+                        enabled = note != null,
+                        modifier = Modifier.rotate(shareRotation)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(
+                            Icons.Default.Share,
+                            contentDescription = "Share",
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     ) { padding ->
@@ -91,6 +146,7 @@ fun NoteDetailsScreen(navController: NavController, noteId: String) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             when {
                 isLoading -> CenterProgressIndicator()
@@ -109,18 +165,20 @@ private fun NoteContent(note: Note, downloadUrls: List<String>, context: Context
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item { NoteHeader(note) }
         item { MetadataSection(note) }
         item { FilesHeader() }
-        items(note.filePath) { file ->
+        items(note.filePath, key = { it.description + it.hashCode() }) { file ->
             val index = note.filePath.indexOf(file)
             PdfCard(
                 file = file,
                 downloadUrl = downloadUrls.getOrNull(index) ?: "",
-                context = context
+                context = context,
+                noteId = note.id,
+                index = index
             )
         }
     }
@@ -131,34 +189,44 @@ private fun NoteHeader(note: Note) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = note.title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = note.subject,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.secondary
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
 private fun MetadataSection(note: Note) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(tween(300)) + slideInVertically(tween(300)),
+        exit = fadeOut(tween(300)) + slideOutVertically(tween(300))
     ) {
-        Column(
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .shadow(3.dp, RoundedCornerShape(16.dp))
         ) {
-            InfoItem("Author", "${note.user.username} (${note.user.college})")
-            InfoItem("Topics", note.topics.joinToString(", "))
-            InfoItem("Created", formatDate(note.createdAt))
-            InfoItem("Stars", note.stars.toString())
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                InfoItem("Author", "${note.user.username} (${note.user.college})")
+                InfoItem("Topics", note.topics.joinToString(", "))
+                InfoItem("Created", formatDate(note.createdAt))
+                InfoItem("Stars", note.stars.toString())
+            }
         }
     }
 }
@@ -167,10 +235,21 @@ private fun MetadataSection(note: Note) {
 private fun InfoItem(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "$label:", style = MaterialTheme.typography.bodyMedium)
-        Text(text = value, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = "$label:",
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -178,47 +257,156 @@ private fun InfoItem(label: String, value: String) {
 private fun FilesHeader() {
     Text(
         text = "Attachments",
-        style = MaterialTheme.typography.titleLarge,
+        style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(vertical = 8.dp)
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("UnrememberedMutableInteractionSource")
 @Composable
-fun PdfCard(file: com.example.notesphere.data.FilePath, downloadUrl: String, context: Context) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+private fun PdfCard(
+    file: FilePath,
+    downloadUrl: String,
+    context: Context,
+    noteId: String,
+    index: Int
+) {
+    // Animation states
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = tween(100),
+        label = "Card Scale"
+    )
+
+    val buttonInteractionSource = remember { MutableInteractionSource() }
+    val isButtonPressed by buttonInteractionSource.collectIsPressedAsState()
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isButtonPressed) 0.95f else 1f,
+        animationSpec = tween(100),
+        label = "Button Scale"
+    )
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(tween(300)) + slideInVertically(tween(300)),
+        exit = fadeOut(tween(300)) + slideOutVertically(tween(300))
     ) {
-        Column(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = file.description.ifEmpty { "PDF Document" },
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            Button(
-                onClick = {
-                    val fullUrl = "${RetrofitClient.BASE_URL}$downloadUrl"
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-                    context.startActivity(intent)
+                .shadow(4.dp, RoundedCornerShape(16.dp))
+                .scale(cardScale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null
+                ) {
+                    val viewUrl = "${RetrofitClient.BASE_URL}api/notes/view/$noteId/$index"
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(viewUrl)).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Unable to open file", Toast.LENGTH_SHORT).show()
+                    }
                 },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    Icons.Default.Download,
-                    contentDescription = "Download",
-                    modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Download PDF")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = file.description.ifEmpty { "Attachment ${index + 1}" },
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "File ${index + 1}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shadowElevation = 2.dp
+                            ) {
+                                Text(
+                                    text = "Download File",
+                                    modifier = Modifier.padding(8.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        FilledTonalButton(
+                            onClick = {
+                                val downloadUrl = "${RetrofitClient.BASE_URL}api/notes/download/$noteId/$index"
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                    Toast.makeText(context, "Starting download...", Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Unable to download file", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .scale(buttonScale)
+                                .clip(CircleShape),
+                            contentPadding = PaddingValues(0.dp),
+                            interactionSource = buttonInteractionSource,
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Download",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -226,8 +414,23 @@ fun PdfCard(file: com.example.notesphere.data.FilePath, downloadUrl: String, con
 
 @Composable
 private fun CenterProgressIndicator() {
+    val scale by rememberInfiniteTransition(label = "Progress Scale").animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "Progress Scale"
+    )
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(
+            modifier = Modifier
+                .size(48.dp)
+                .scale(scale),
+            strokeWidth = 4.dp,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
@@ -241,11 +444,21 @@ private fun ErrorMessage(message: String, onRetry: () -> Unit) {
         Text(
             text = message,
             color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(16.dp)
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            textAlign = TextAlign.Center
         )
-        Button(onClick = onRetry) {
-            Text("Try Again")
+        FilledTonalButton(
+            onClick = onRetry,
+            modifier = Modifier
+                .padding(8.dp)
+                .height(40.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                "Try Again",
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+            )
         }
     }
 }
@@ -255,7 +468,8 @@ private fun EmptyStateMessage() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text = "Note not found",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

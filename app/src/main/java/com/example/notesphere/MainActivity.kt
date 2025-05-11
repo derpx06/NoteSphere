@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.notesphere.ui.screens.login.LoginScreen
 import com.example.notesphere.ui.screens.login.RegisterScreen
+import com.example.notesphere.ui.screens.homescreen.AddNoteScreen
 import com.example.notesphere.ui.screens.notes.HomeScreen
 import com.example.notesphere.ui.screens.notes.NoteDetailsScreen
 import com.example.notesphere.ui.theme.NoteSphereTheme
@@ -62,6 +63,9 @@ fun NoteSphereApp(authManager: AuthManager) {
         }
         composable("home") {
             HomeScreen(navController = navController)
+        }
+        composable("addNote") {
+            AddNoteScreen(navController=navController)
         }
         composable("noteDetails/{noteId}") { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
