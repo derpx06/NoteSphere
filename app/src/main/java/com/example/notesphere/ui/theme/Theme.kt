@@ -41,27 +41,52 @@ val GradientEnd = Color(0xFF03DAC5) // Teal end for gradient
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
     secondary = SecondaryDark,
-    tertiary = Pink80, // Accent color
+    tertiary = Pink80,
     background = Color(0xFF121212),
     surface = Color(0xFF1E1E1E),
     onPrimary = Color.White,
     onSecondary = Color.Black,
     onBackground = Color.White,
     onSurface = Color.White,
-    error = Color(0xFFCF6679)
+    error = Color(0xFFCF6679),
+    surfaceVariant = Color(0xFF2C2C2C),
+    primaryContainer = Color(0xFF3700B3),
+    secondaryContainer = Color(0xFF004D40),
+    errorContainer = Color(0xFF93000A)
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,
     secondary = SecondaryLight,
-    tertiary = Purple80, // Accent color
+    tertiary = Purple80,
     background = Color(0xFFFFFFFF),
     surface = Color(0xFFF5F5F5),
     onPrimary = Color.White,
     onSecondary = Color.Black,
     onBackground = Color.Black,
     onSurface = Color.Black,
-    error = Color(0xFFB00020)
+    error = Color(0xFFB00020),
+    surfaceVariant = Color(0xFFE0E0E0),
+    primaryContainer = Color(0xFFBB86FC),
+    secondaryContainer = Color(0xFF03DAC5),
+    errorContainer = Color(0xFFFDE7E9)
+)
+
+private val TransparentColorScheme = lightColorScheme(
+    primary = PrimaryLight,
+    secondary = SecondaryLight,
+    tertiary = Purple80,
+    background = Color.Transparent,
+    surface = Color.White.copy(alpha = 0.9f), // Semi-transparent surface for readability
+    onPrimary = Color.White,
+    onSecondary = Color.Black,
+    onBackground = Color.Black, // High contrast for text
+    onSurface = Color.Black,
+    error = Color(0xFFB00020),
+    surfaceVariant = Color.White.copy(alpha = 0.85f),
+    primaryContainer = PrimaryLight.copy(alpha = 0.3f),
+    secondaryContainer = SecondaryLight.copy(alpha = 0.3f),
+    errorContainer = Color(0xFFFDE7E9).copy(alpha = 0.9f)
 )
 
 // Typography
@@ -191,9 +216,11 @@ val GradientBrush = Brush.verticalGradient(
 fun NoteSphereTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    transparentTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        transparentTheme -> TransparentColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)

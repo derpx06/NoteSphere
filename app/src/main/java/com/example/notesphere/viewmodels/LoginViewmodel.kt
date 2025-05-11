@@ -2,6 +2,7 @@ package com.example.notesphere.viewmodels
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +37,10 @@ class LoginViewModel(
 
     var takePictureLauncher: ManagedActivityResultLauncher<Uri, Boolean>? = null
     var pickImageLauncher: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>? = null
+
+    init {
+        Log.d("LoginViewModel", "Initialized with apiService=$apiService, authManager=$authManager")
+    }
 
     fun updateEmail(email: String) {
         _uiState.value = _uiState.value.copy(
@@ -84,16 +89,19 @@ class LoginViewModel(
             if (!validateLogin()) return@launch
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
+                Log.d("LoginViewModel", "Attempting login with email=${_uiState.value.email}")
                 val response = apiService.login(
                     LoginRequest(
                         email = _uiState.value.email,
                         password = _uiState.value.password
                     )
                 )
+                Log.d("LoginViewModel", "Login response: code=${response.code()}, body=${response.body()}")
                 if (response.isSuccessful && response.body()?.success == true) {
                     val token = response.body()?.token
                     if (token != null) {
                         authManager.saveToken(token)
+                        Log.d("LoginViewModel", "Token saved: $token")
                         _uiState.value.profileImageUri?.let { uriString ->
                             uploadProfilePhoto(context, Uri.parse(uriString))
                         }
@@ -108,35 +116,48 @@ class LoginViewModel(
                             isLoading = false,
                             errorMessage = "Login failed: No token received"
                         )
+                        Log.e("LoginViewModel", "No token in response")
                     }
                 } else {
+                    val errorMsg = response.body()?.message ?: "Login failed: ${response.code()}"
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = response.body()?.message ?: "Login failed"
+                        errorMessage = errorMsg
                     )
+                    Log.e("LoginViewModel", "Login failed: $errorMsg")
                 }
             } catch (e: Exception) {
+                val errorMsg = "Network error: ${e.message}"
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Network error: ${e.message}"
+                    errorMessage = errorMsg
                 )
+                Log.e("LoginViewModel", errorMsg, e)
             }
         }
     }
 
     fun uploadProfilePhoto(context: Context, uri: Uri) {
         viewModelScope.launch {
-            val token = authManager.getToken() ?: return@launch showAlert("No token available")
+            val token = authManager.getToken() ?: return@launch showAlert("No token available").also {
+                Log.e("LoginViewModel", "No token available for photo upload")
+            }
             try {
+                Log.d("LoginViewModel", "Uploading profile photo: uri=$uri")
                 val multipart = uriToMultipart(context, uri)
                 val response = apiService.uploadProfilePhoto("Bearer $token", multipart)
+                Log.d("LoginViewModel", "Photo upload response: code=${response.code()}, body=${response.body()}")
                 if (response.isSuccessful && response.body()?.success == true) {
                     showAlert("Profile photo uploaded successfully")
                 } else {
-                    showAlert(response.body()?.message ?: "Failed to upload profile photo")
+                    val errorMsg = response.body()?.message ?: "Failed to upload profile photo"
+                    showAlert(errorMsg)
+                    Log.e("LoginViewModel", "Photo upload failed: $errorMsg")
                 }
             } catch (e: Exception) {
-                showAlert("Upload error: ${e.message}")
+                val errorMsg = "Upload error: ${e.message}"
+                showAlert(errorMsg)
+                Log.e("LoginViewModel", errorMsg, e)
             }
         }
     }
@@ -145,18 +166,22 @@ class LoginViewModel(
         return when {
             _uiState.value.email.isEmpty() -> {
                 _uiState.value = _uiState.value.copy(errorMessage = "Email is required")
+                Log.w("LoginViewModel", "Validation failed: Email is required")
                 false
             }
             !_uiState.value.isEmailValid -> {
                 _uiState.value = _uiState.value.copy(errorMessage = "Invalid email format")
+                Log.w("LoginViewModel", "Validation failed: Invalid email format")
                 false
             }
             _uiState.value.password.isEmpty() -> {
                 _uiState.value = _uiState.value.copy(errorMessage = "Password is required")
+                Log.w("LoginViewModel", "Validation failed: Password is required")
                 false
             }
             _uiState.value.password.length < 6 -> {
                 _uiState.value = _uiState.value.copy(errorMessage = "Password must be at least 6 characters")
+                Log.w("LoginViewModel", "Validation failed: Password too short")
                 false
             }
             else -> {

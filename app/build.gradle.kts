@@ -76,6 +76,8 @@ dependencies {
     implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation ("androidx.compose.animation:animation:1.5.0")
+    //swipe feature
+    implementation ("com.google.accompanist:accompanist-swiperefresh:0.36.0")
     //DataStore
     implementation ("com.google.dagger:hilt-android:2.44")
     implementation ("androidx.hilt:hilt-navigation-compose:1.0.0")

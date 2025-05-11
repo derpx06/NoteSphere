@@ -19,7 +19,7 @@ data class User(
 )
 
 class RegisterViewModel(
-    private val apiService: ApiService = RetrofitClient.apiService
+    private val apiService: ApiService = RetrofitClient.publicApiService
 ) : ViewModel() {
     private val _user = mutableStateOf(User())
     val user: State<User> = _user

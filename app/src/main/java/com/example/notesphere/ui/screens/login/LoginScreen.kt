@@ -1,5 +1,6 @@
 package com.example.notesphere.ui.screens.login
 
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -36,7 +37,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.notesphere.ui.components.CustomTextField
 import com.example.notesphere.ui.components.ProfileImageSection
-import com.example.notesphere.utils.AuthManager
 import com.example.notesphere.utils.ViewModelFactory
 import com.example.notesphere.viewmodels.LoginViewModel
 
@@ -50,14 +50,14 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val viewModel: LoginViewModel = viewModel(
-        factory = ViewModelFactory(authManager = AuthManager(context))
+        factory = ViewModelFactory(context = context)
     )
+    Log.d("LoginScreen", "LoginViewModel created: $viewModel")
     val uiState by viewModel.uiState
     var passwordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // Animation state for card expansion
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         isVisible = true
@@ -219,7 +219,11 @@ fun LoginScreen(
                             Button(
                                 onClick = {
                                     keyboardController?.hide()
-                                    viewModel.login(context) { onLoginSuccess() }
+                                    Log.d("LoginScreen", "Sign In clicked")
+                                    viewModel.login(context) {
+                                        Log.d("LoginScreen", "Login successful, navigating")
+                                        onLoginSuccess()
+                                    }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -249,6 +253,7 @@ fun LoginScreen(
 
                             TextButton(
                                 onClick = {
+                                    Log.d("LoginScreen", "Navigating to register")
                                     navController.navigate("register") {
                                         popUpTo("login") { inclusive = false }
                                         launchSingleTop = true
