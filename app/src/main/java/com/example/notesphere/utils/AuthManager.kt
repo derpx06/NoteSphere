@@ -4,144 +4,114 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import com.example.notesphere.data.User
 import java.util.concurrent.TimeUnit
 
 class AuthManager(context: Context) {
-    // Encrypted SharedPreferences for secure storage
     private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
     private val prefs = EncryptedSharedPreferences.create(
-        "NoteSpherePrefs",
+        "NoteSphereSecurePrefs",
         masterKeyAlias,
         context,
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    // Keys for storing data
     private companion object {
         const val KEY_TOKEN = "auth_token"
         const val KEY_REFRESH_TOKEN = "refresh_token"
         const val KEY_TOKEN_EXPIRY = "token_expiry"
+        const val KEY_USER_ID = "user_id"
         const val KEY_USERNAME = "username"
         const val KEY_EMAIL = "email"
         const val KEY_ROLE = "role"
         const val KEY_COLLEGE = "college"
+        const val KEY_PROFILE_PHOTO = "profile_photo"
+        const val KEY_DESCRIPTION = "description"
+        const val KEY_STARS = "stars"
+        const val KEY_SEMESTER = "semester"
     }
 
-    // Data class to represent user information
-    data class User(
-        val username: String,
-        val email: String,
-        val role: String,
-        val college: String
-    )
-
-    /**
-     * Saves the authentication token, refresh token, and token expiry time.
-     * @param token The JWT or authentication token.
-     * @param refreshToken Optional refresh token for token renewal.
-     * @param expiresInSeconds Optional token expiration duration in seconds.
-     */
-    fun saveToken(token: String, refreshToken: String? = null, expiresInSeconds: Long? = null) {
+    fun saveAuthState(token: String, user: User, expiresInSeconds: Long = 3600) {
         prefs.edit {
             putString(KEY_TOKEN, token)
-            refreshToken?.let { putString(KEY_REFRESH_TOKEN, it) }
-            expiresInSeconds?.let {
-                val expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(it)
-                putLong(KEY_TOKEN_EXPIRY, expiryTime)
-            }
+            putString(KEY_USER_ID, user.id)
+            putString(KEY_USERNAME, user.username)
+            putString(KEY_EMAIL, user.email)
+            putString(KEY_ROLE, user.role)
+            putString(KEY_COLLEGE, user.college)
+            putString(KEY_PROFILE_PHOTO, user.profilePhotoPath)
+            putString(KEY_DESCRIPTION, user.description)
+            putInt(KEY_STARS, user.stars)
+            putInt(KEY_SEMESTER, user.semester ?: 1)
+            val expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(expiresInSeconds)
+            putLong(KEY_TOKEN_EXPIRY, expiryTime)
         }
     }
-
-    /**
-     * Saves user information.
-     * @param username The user's username.
-     * @param email The user's email.
-     * @param role The user's role (e.g., student, teacher, admin).
-     * @param college The user's college name.
-     */
-    fun saveUserInfo(username: String, email: String, role: String, college: String) {
-        prefs.edit {
-            putString(KEY_USERNAME, username)
-            putString(KEY_EMAIL, email)
-            putString(KEY_ROLE, role)
-            putString(KEY_COLLEGE, college)
-        }
-    }
-
-    /**
-     * Retrieves the authentication token if it exists and is not expired.
-     * @return The token or null if it doesn't exist or is expired.
-     */
-    fun getToken(): String? {
-        val token = prefs.getString(KEY_TOKEN, null)
-        val expiryTime = prefs.getLong(KEY_TOKEN_EXPIRY, 0)
-        return if (token != null && (expiryTime == 0L || System.currentTimeMillis() < expiryTime)) {
-            token
+    fun getUserId(): String? {
+        // Example: Retrieve user ID from SharedPreferences
+        return prefs.getString("user_id", null)
+        // Alternatively, if user ID is in the JWT token:
+        // val token = getToken() ?: return null
+        // return parseJwt(token)?.getString("userId")
+    }    fun getAuthenticatedUser(): User? {
+        return if (isLoggedIn()) {
+            User(
+                id = prefs.getString(KEY_USER_ID, null) ?: return null,
+                username = prefs.getString(KEY_USERNAME, null) ?: return null,
+                email = prefs.getString(KEY_EMAIL, null) ?: return null,
+                college = prefs.getString(KEY_COLLEGE, null) ?: return null,
+                role = prefs.getString(KEY_ROLE, null),
+                profilePhotoPath = prefs.getString(KEY_PROFILE_PHOTO, null),
+                description = prefs.getString(KEY_DESCRIPTION, null),
+                stars = prefs.getInt(KEY_STARS, 0),
+                semester = prefs.getInt(KEY_SEMESTER, 0).takeIf { it > 0 }
+            )
         } else {
             null
         }
     }
 
-    /**
-     * Retrieves the refresh token.
-     * @return The refresh token or null if it doesn't exist.
-     */
+    fun updateProfileInfo(
+        profilePhotoPath: String? = null,
+        description: String? = null,
+        semester: Int? = null
+    ) {
+        prefs.edit {
+            profilePhotoPath?.let { putString(KEY_PROFILE_PHOTO, it) }
+            description?.let { putString(KEY_DESCRIPTION, it) }
+            semester?.let { putInt(KEY_SEMESTER, it) }
+        }
+    }
+
+    fun isLoggedIn(): Boolean {
+        val token = prefs.getString(KEY_TOKEN, null)
+        val expiryTime = prefs.getLong(KEY_TOKEN_EXPIRY, 0)
+        return token != null && System.currentTimeMillis() < expiryTime
+    }
+
+    fun getToken(): String? {
+        val token = prefs.getString(KEY_TOKEN, null)
+        val expiryTime = prefs.getLong(KEY_TOKEN_EXPIRY, 0)
+        return if (token != null && System.currentTimeMillis() < expiryTime) token else null
+    }
+
+    fun logout() {
+        prefs.edit {
+            clear()
+            apply()
+        }
+    }
+
     fun getRefreshToken(): String? {
         return prefs.getString(KEY_REFRESH_TOKEN, null)
     }
 
-    /**
-     * Retrieves the stored user information.
-     * @return A User object or null if user data is incomplete.
-     */
-    fun getUserInfo(): User? {
-        val username = prefs.getString(KEY_USERNAME, null)
-        val email = prefs.getString(KEY_EMAIL, null)
-        val role = prefs.getString(KEY_ROLE, null)
-        val college = prefs.getString(KEY_COLLEGE, null)
-        return if (username != null && email != null && role != null && college != null) {
-            User(username, email, role, college)
-        } else {
-            null
-        }
-    }
-
-    /**
-     * Checks if the user is logged in (has a valid, non-expired token).
-     * @return True if the user is logged in, false otherwise.
-     */
-    fun isLoggedIn(): Boolean {
-        return getToken() != null
-    }
-
-    /**
-     * Checks if the user has a specific role.
-     * @param role The role to check (e.g., "student", "teacher", "admin").
-     * @return True if the user has the specified role, false otherwise.
-     */
-    fun hasRole(role: String): Boolean {
-        return prefs.getString(KEY_ROLE, null)?.equals(role, ignoreCase = true) == true
-    }
-
-    /**
-     * Logs out the user by clearing all stored data (token, user info, etc.).
-     */
-    fun logout() {
+    fun updateTokens(newToken: String, newRefreshToken: String, expiresInSeconds: Long) {
         prefs.edit {
-            clear()
-        }
-    }
-
-    /**
-     * Clears the authentication token and refresh token, retaining user info.
-     * Useful for forcing a re-login without losing user data.
-     */
-    fun clearToken() {
-        prefs.edit {
-            remove(KEY_TOKEN)
-            remove(KEY_REFRESH_TOKEN)
-            remove(KEY_TOKEN_EXPIRY)
+            putString(KEY_TOKEN, newToken)
+            putString(KEY_REFRESH_TOKEN, newRefreshToken)
+            putLong(KEY_TOKEN_EXPIRY, System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(expiresInSeconds))
         }
     }
 }

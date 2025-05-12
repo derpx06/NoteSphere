@@ -15,9 +15,10 @@ data class Note(
     val filePath: List<FilePath>,
     val user: User,
     val stars: Int,
-    val starredBy: List<User>,
+    val starredBy: List<String>, // List of user IDs as strings
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val semester: Int
 )
 
 data class FilePath(
@@ -30,7 +31,11 @@ data class User(
     val username: String,
     val email: String,
     val college: String,
-    val role: String? = null // Optional to handle cases where role is absent
+    val role: String? = null,
+    val profilePhotoPath: String? = null,
+    val description: String? = null,
+    val stars: Int = 0,
+    val semester: Int? = null
 )
 
 data class RegisterRequest(
@@ -63,8 +68,21 @@ data class ProfilePhotoResponse(
     val message: String,
     val profilePhotoPath: String?
 )
+
 data class NoteDetailsResponse(
     val success: Boolean,
     val note: Note,
     val downloadUrls: List<String>
+)
+
+data class ProfileResponse(
+    val success: Boolean,
+    val user: User?,
+    val message: String?
+)
+data class UpdateProfileRequest(
+    val username: String? = null,
+    val college: String? = null,
+    val description: String? = null,
+    val semester: Int? = null
 )

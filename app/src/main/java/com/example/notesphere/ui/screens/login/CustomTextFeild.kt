@@ -27,8 +27,7 @@ fun CustomTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label, style = MaterialTheme.typography.bodyMedium) },
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         isError = isError,
         trailingIcon = trailingIcon,

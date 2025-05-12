@@ -13,6 +13,7 @@ import com.example.notesphere.ui.screens.login.RegisterScreen
 import com.example.notesphere.ui.screens.homescreen.AddNoteScreen
 import com.example.notesphere.ui.screens.notes.HomeScreen
 import com.example.notesphere.ui.screens.notes.NoteDetailsScreen
+import com.example.notesphere.ui.screens.profile.ProfileScreen
 import com.example.notesphere.ui.theme.NoteSphereTheme
 import com.example.notesphere.utils.AuthManager
 
@@ -65,13 +66,20 @@ fun NoteSphereApp(authManager: AuthManager) {
             HomeScreen(navController = navController)
         }
         composable("addNote") {
-            AddNoteScreen(navController=navController)
+            AddNoteScreen(navController = navController)
         }
         composable("noteDetails/{noteId}") { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
             NoteDetailsScreen(
                 navController = navController,
                 noteId = noteId
+            )
+        }
+        composable("profile/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            ProfileScreen(
+                navController = navController,
+                userId = userId
             )
         }
     }

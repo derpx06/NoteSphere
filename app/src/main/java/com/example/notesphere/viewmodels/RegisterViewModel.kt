@@ -15,7 +15,8 @@ data class User(
     val password: String = "",
     val role: String = "",
     val college: String = "",
-    val profilePhotoUri: String? = null
+    val profilePhotoUri: String? = null,
+    val semester: Int? = null
 )
 
 class RegisterViewModel(
@@ -54,7 +55,7 @@ class RegisterViewModel(
         _user.value = _user.value.copy(profilePhotoUri = uri)
     }
 
-    fun validateRegistration(confirmPassword: String): Boolean {
+    fun validateRegistration(confirmPassword: String, semester: Int): Boolean {
         return when {
             _user.value.username.isEmpty() -> {
                 _errorMessage.value = "Username is required"
@@ -96,6 +97,10 @@ class RegisterViewModel(
                 _errorMessage.value = "College name must be at least 3 characters"
                 false
             }
+            semester < 1 || semester > 8 -> {
+                _errorMessage.value = "Semester must be between 1 and 8"
+                false
+            }
             else -> {
                 _errorMessage.value = ""
                 true
@@ -103,9 +108,9 @@ class RegisterViewModel(
         }
     }
 
-    fun register(onSuccess: () -> Unit) {
+    fun register(semester: Int, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            if (!validateRegistration(_user.value.password)) return@launch
+            if (!validateRegistration(_user.value.password, semester)) return@launch
             _isLoading.value = true
             try {
                 val response = apiService.register(
@@ -114,7 +119,9 @@ class RegisterViewModel(
                         email = _user.value.email,
                         password = _user.value.password,
                         role = _user.value.role,
-                        college = _user.value.college
+                        college = _user.value.college,
+                       // profilePhotoUri = _user.value.profilePhotoUri,
+                        //semester = semester
                     )
                 )
                 if (response.isSuccessful && response.body()?.success == true) {

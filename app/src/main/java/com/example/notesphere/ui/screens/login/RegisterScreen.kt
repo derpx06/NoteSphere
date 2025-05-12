@@ -16,12 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +56,8 @@ fun RegisterScreen(navController: NavController) {
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf(false) }
+    var semester by remember { mutableStateOf("") }
+    var semesterError by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var isVisible by remember { mutableStateOf(false) }
@@ -74,7 +71,7 @@ fun RegisterScreen(navController: NavController) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
                         MaterialTheme.colorScheme.background
                     )
                 )
@@ -304,6 +301,28 @@ fun RegisterScreen(navController: NavController) {
                             }
 
                             item {
+                                CustomTextField(
+                                    value = semester,
+                                    onValueChange = {
+                                        semester = it
+                                        semesterError = it.isNotEmpty() && (it.toIntOrNull() == null || it.toInt() < 1 || it.toInt() > 8)
+                                    },
+                                    label = "Semester (1-8)",
+                                    isError = semesterError,
+                                    trailingIcon = {
+                                        if (semesterError) {
+                                            Icon(
+                                                imageVector = Icons.Default.Error,
+                                                contentDescription = "Invalid semester",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                            }
+
+                            item {
                                 if (errorMessage.isNotEmpty()) {
                                     Text(
                                         text = errorMessage,
@@ -327,8 +346,9 @@ fun RegisterScreen(navController: NavController) {
                                     onClick = {
                                         keyboardController?.hide()
                                         Log.d("RegisterScreen", "Sign Up clicked")
-                                        if (viewModel.validateRegistration(confirmPassword)) {
-                                            viewModel.register {
+                                        val semesterInt = semester.toIntOrNull() ?: 0
+                                        if (viewModel.validateRegistration(confirmPassword, semesterInt)) {
+                                            viewModel.register(semesterInt) {
                                                 Log.d("RegisterScreen", "Registration successful, attempting login")
                                                 loginViewModel.updateEmail(user.email)
                                                 loginViewModel.updatePassword(user.password)

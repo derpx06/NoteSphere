@@ -99,8 +99,9 @@ class LoginViewModel(
                 Log.d("LoginViewModel", "Login response: code=${response.code()}, body=${response.body()}")
                 if (response.isSuccessful && response.body()?.success == true) {
                     val token = response.body()?.token
-                    if (token != null) {
-                        authManager.saveToken(token)
+                    val user = response.body()?.user
+                    if (token != null && user != null) {
+                        authManager.saveAuthState(token, user)
                         Log.d("LoginViewModel", "Token saved: $token")
                         _uiState.value.profileImageUri?.let { uriString ->
                             uploadProfilePhoto(context, Uri.parse(uriString))
@@ -114,9 +115,9 @@ class LoginViewModel(
                     } else {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = "Login failed: No token received"
+                            errorMessage = "Login failed: No token or user data received"
                         )
-                        Log.e("LoginViewModel", "No token in response")
+                        Log.e("LoginViewModel", "No token or user in response")
                     }
                 } else {
                     val errorMsg = response.body()?.message ?: "Login failed: ${response.code()}"
@@ -145,9 +146,12 @@ class LoginViewModel(
             try {
                 Log.d("LoginViewModel", "Uploading profile photo: uri=$uri")
                 val multipart = uriToMultipart(context, uri)
-                val response = apiService.uploadProfilePhoto("Bearer $token", multipart)
+                val response = apiService.uploadProfilePhoto(multipart, "Bearer $token")
                 Log.d("LoginViewModel", "Photo upload response: code=${response.code()}, body=${response.body()}")
                 if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.profilePhotoPath?.let {
+                        authManager.updateProfileInfo(profilePhotoPath = it)
+                    }
                     showAlert("Profile photo uploaded successfully")
                 } else {
                     val errorMsg = response.body()?.message ?: "Failed to upload profile photo"
