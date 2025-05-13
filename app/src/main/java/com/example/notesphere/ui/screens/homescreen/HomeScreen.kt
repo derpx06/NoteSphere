@@ -1,5 +1,6 @@
 package com.example.notesphere.ui.screens.notes
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -72,17 +73,24 @@ private fun parseDate(isoDate: String): Date? = try {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    val context = LocalContext.current
-    val viewModel: NotesViewModel = viewModel(factory = ViewModelFactory(context))
-    val authManager = AuthManager(context)
+    val viewModel: NotesViewModel = viewModel(factory = ViewModelFactory(LocalContext.current))
     val notes by viewModel.notes
     val isLoading by viewModel.isLoading
     val errorMessage by viewModel.errorMessage
+    val userId by viewModel.userId
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
     var sortOption by remember { mutableStateOf(SortOption.DATE_DESC) }
     var showSortMenu by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+
+    // Show toast for errors
+    LaunchedEffect(errorMessage) {
+        if (errorMessage.isNotEmpty()) {
+            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+        }
+    }
 
     val filteredNotes = notes.filter {
         it.title.contains(searchQuery, ignoreCase = true) ||
@@ -140,9 +148,7 @@ fun HomeScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        text = authManager.getAuthenticatedUser()?.username?.let {
-                            "Welcome, ${it.take(12)}${if (it.length > 12) "..." else ""}"
-                        } ?: "NoteSphere",
+                        text = "NoteSphere",
                         style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -151,8 +157,10 @@ fun HomeScreen(navController: NavController) {
                 },
                 actions = {
                     IconButton(onClick = {
-                        authManager.getAuthenticatedUser()?.id?.let { userId ->
+                        if (userId != null) {
                             navController.navigate("profile/$userId")
+                        } else {
+                            navController.navigate("login")
                         }
                     }) {
                         Icon(
@@ -291,7 +299,7 @@ fun HomeScreen(navController: NavController) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     when {
                         isLoading -> LoadingState()
-                        errorMessage.isNotEmpty() -> ErrorState(errorMessage) { viewModel.fetchNotes() }
+                        errorMessage.isNotEmpty() && notes.isEmpty() -> ErrorState(errorMessage) { viewModel.fetchNotes() }
                         sortedNotes.isEmpty() -> EmptyState()
                         else -> NotesGrid(sortedNotes, navController, viewModel)
                     }
@@ -430,7 +438,15 @@ private fun NoteCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = onStarClick) {
+                IconButton(
+                    onClick = {
+                        if (userId == null) {
+                            Toast.makeText(context, "Please log in to star notes", Toast.LENGTH_SHORT).show()
+                        } else {
+                            onStarClick()
+                        }
+                    }
+                ) {
                     Icon(
                         Icons.Default.Star,
                         contentDescription = "Star",

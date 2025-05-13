@@ -10,7 +10,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    internal const val BASE_URL = "https://impact-demanding-mystery-repeat.trycloudflare.com/"
+    internal const val BASE_URL = "https://coral-novelty-necessarily-example.trycloudflare.com/"
 
     val publicApiService: ApiService by lazy {
         val logging = HttpLoggingInterceptor().apply {

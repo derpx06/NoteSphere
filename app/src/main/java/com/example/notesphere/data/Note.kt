@@ -72,7 +72,8 @@ data class ProfilePhotoResponse(
 data class NoteDetailsResponse(
     val success: Boolean,
     val note: Note,
-    val downloadUrls: List<String>
+    val downloadUrls: List<String>,
+    val viewUrls: List<String> // Added to match server response
 )
 
 data class ProfileResponse(
@@ -80,6 +81,7 @@ data class ProfileResponse(
     val user: User?,
     val message: String?
 )
+
 data class UpdateProfileRequest(
     val username: String? = null,
     val college: String? = null,

@@ -1,6 +1,7 @@
 package com.example.notesphere.utils
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
@@ -46,21 +47,22 @@ class AuthManager(context: Context) {
             putInt(KEY_SEMESTER, user.semester ?: 1)
             val expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(expiresInSeconds)
             putLong(KEY_TOKEN_EXPIRY, expiryTime)
+            Log.d("AuthManager", "Saved userId=${user.id}, token=$token")
         }
     }
+
     fun getUserId(): String? {
-        // Example: Retrieve user ID from SharedPreferences
         return prefs.getString("user_id", null)
-        // Alternatively, if user ID is in the JWT token:
-        // val token = getToken() ?: return null
-        // return parseJwt(token)?.getString("userId")
-    }    fun getAuthenticatedUser(): User? {
+    }
+
+    fun getAuthenticatedUser(): User? {
         return if (isLoggedIn()) {
+            val userId = prefs.getString(KEY_USER_ID, null) ?: return null
             User(
-                id = prefs.getString(KEY_USER_ID, null) ?: return null,
-                username = prefs.getString(KEY_USERNAME, null) ?: return null,
-                email = prefs.getString(KEY_EMAIL, null) ?: return null,
-                college = prefs.getString(KEY_COLLEGE, null) ?: return null,
+                id = userId,
+                username = prefs.getString(KEY_USERNAME, null) ?: "Unknown",
+                email = prefs.getString(KEY_EMAIL, null) ?: "unknown@example.com",
+                college = prefs.getString(KEY_COLLEGE, null) ?: "Unknown College",
                 role = prefs.getString(KEY_ROLE, null),
                 profilePhotoPath = prefs.getString(KEY_PROFILE_PHOTO, null),
                 description = prefs.getString(KEY_DESCRIPTION, null),

@@ -27,14 +27,14 @@ interface ApiService {
     @Multipart
     @POST("api/notes")
     suspend fun uploadNote(
-        @Part title: RequestBody,
-        @Part subject: RequestBody,
-        @Part topics: RequestBody,
-        @Part descriptions: List<MultipartBody.Part>,
-        @Part semester: RequestBody,
+        @Part("title") title: RequestBody,
+        @Part("subject") subject: RequestBody,
+        @Part("topics") topics: RequestBody,
+        @Part("descriptions") descriptions: RequestBody,
+        @Part("semester") semester: RequestBody,
         @Part files: List<MultipartBody.Part>,
         @Header("Authorization") token: String
-    ): Response<Any>
+    ): Response<NoteDetailsResponse>
 
     @DELETE("api/notes/{id}")
     suspend fun deleteNote(
@@ -63,7 +63,7 @@ interface ApiService {
     suspend fun starNote(
         @Path("id") noteId: String,
         @Header("Authorization") token: String
-    ): Response<Any>
+    ): Response<NoteDetailsResponse> // Changed from Response<Any> to match backend response
 
     @POST("api/users/register")
     suspend fun register(
@@ -75,9 +75,9 @@ interface ApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
-    @GET("api/users/profile/{id}")
+    @GET("api/users/profile")
     suspend fun getProfile(
-        @Path("id") userId: String,
+        @Query("userId") userId: String,
         @Header("Authorization") token: String? = null
     ): Response<ProfileResponse>
 
@@ -90,7 +90,7 @@ interface ApiService {
     @Multipart
     @POST("api/users/upload-profile-photo")
     suspend fun uploadProfilePhoto(
-        @Part photo: MultipartBody.Part,
+        @Part file: MultipartBody.Part,
         @Header("Authorization") token: String
     ): Response<ProfilePhotoResponse>
 
@@ -99,4 +99,3 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<NotesResponse>
 }
-

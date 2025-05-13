@@ -28,7 +28,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             isLoading = true
             error = null
             try {
-                val response = apiService.getProfile(userId)
+                val response = apiService.getProfile(userId = userId)
                 if (response.isSuccessful) {
                     response.body()?.let {
                         if (it.success) {
