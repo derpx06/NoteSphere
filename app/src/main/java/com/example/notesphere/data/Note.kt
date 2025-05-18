@@ -27,7 +27,7 @@ data class FilePath(
 )
 
 data class User(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id") val id: String,
     val username: String,
     val email: String,
     val college: String,
