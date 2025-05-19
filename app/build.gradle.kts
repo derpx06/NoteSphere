@@ -61,13 +61,10 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
     // Retrofit
     implementation ("androidx.navigation:navigation-compose:2.7.5")
-    // ... other dependencies
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    // ... other dependencies
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    // ... other dependencies
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7") // For Fragments, not Compose
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.7") // For Fragments,
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
@@ -76,44 +73,41 @@ dependencies {
     implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
     implementation ("androidx.compose.animation:animation:1.5.0")
-    //swipe feature
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.36.0")
-    //DataStore
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1") // Or the latest stable version
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation ("com.google.mlkit:text-recognition:16.0.0")
     implementation ("com.google.mlkit:face-detection:16.1.6")
     implementation ("com.google.dagger:hilt-android:2.44")
     implementation ("androidx.hilt:hilt-navigation-compose:1.0.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2") // Use the latest version
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation ("io.coil-kt:coil-compose:2.4.0")
-    // Secure Storage
     implementation ("androidx.security:security-crypto:1.1.0-alpha06")
-    // Add Accompanist for ModalBottomSheetLayout
     implementation ("com.google.accompanist:accompanist-navigation-material:0.31.2-alpha")
-    // Gson (you may not need this line if you are using Retrofit with the Gson converter)
     implementation("com.google.code.gson:gson:2.10.1")
-    // Gson (you may not need this line if you are using Retrofit with the Gson converter)
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("io.ktor:ktor-client-core:2.3.9")
     implementation("io.ktor:ktor-client-cio:2.3.9")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.9")
     implementation("io.ktor:ktor-serialization-gson:2.3.9")
     implementation("io.ktor:ktor-client-logging:2.3.9")
-    // Navigation Component (for Jetpack Compose)
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    // Navigation Component (for Jetpack Compose)
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation(libs.androidx.animation.core.android)
     implementation(libs.androidx.animation.core.android)
     implementation(libs.androidx.animation.core.android)
     implementation(libs.androidx.benchmark.common)
-    // Navigation component (for Fragments)
-    val roomVersion = "2.7.1" // Use the latest version
+    // New dependencies for swipeable layout and enhanced search
+    implementation("com.google.accompanist:accompanist-pager:0.32.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.1")
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.1")
+    
+    val roomVersion = "2.7.1"
     implementation("androidx.room:room-runtime:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")//Kotlin extensions and coroutines support
+    implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
     implementation(libs.androidx.core.ktx)
@@ -131,17 +125,11 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    // Room
     implementation("androidx.room:room-runtime:2.5.2")
-    // kapt("androidx.room:room-compiler:2.5.2")  // Uncommented and corrected
     implementation("androidx.compose.material:material-icons-extended:<latest>")
-
-    // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
-
-    // Coil for Image Loading
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
