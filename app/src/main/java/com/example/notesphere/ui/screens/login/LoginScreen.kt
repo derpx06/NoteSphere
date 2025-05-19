@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.notesphere.ui.components.CustomTextField
-import com.example.notesphere.ui.components.ProfileImageSection
 import com.example.notesphere.utils.ViewModelFactory
 import com.example.notesphere.viewmodels.LoginViewModel
 
@@ -125,13 +124,6 @@ fun LoginScreen(
                                 text = "Sign In",
                                 style = MaterialTheme.typography.headlineSmall.copy(fontSize = 28.sp),
                                 color = MaterialTheme.colorScheme.primary
-                            )
-
-                            ProfileImageSection(viewModel = viewModel, isEditable = true)
-                            Text(
-                                text = "Profile photo is optional",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             CustomTextField(

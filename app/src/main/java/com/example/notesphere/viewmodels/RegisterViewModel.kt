@@ -1,5 +1,7 @@
 package com.example.notesphere.viewmodels
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -7,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.notesphere.data.RegisterRequest
 import com.example.notesphere.network.ApiService
 import com.example.notesphere.network.RetrofitClient
+import com.example.notesphere.utils.extractInfoFromIdCard
+import com.example.notesphere.utils.saveBitmapToFile
 import kotlinx.coroutines.launch
 
 data class User(
@@ -31,8 +35,13 @@ class RegisterViewModel(
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
+    private val _isVerified = mutableStateOf(false)
+    val isVerified: State<Boolean> = _isVerified
+
     fun updateUsername(username: String) {
-        _user.value = _user.value.copy(username = username)
+        if (!_isVerified.value) {
+            _user.value = _user.value.copy(username = username)
+        }
     }
 
     fun updateEmail(email: String) {
@@ -44,15 +53,28 @@ class RegisterViewModel(
     }
 
     fun updateRole(role: String) {
-        _user.value = _user.value.copy(role = role.toLowerCase())
+        _user.value = _user.value.copy(role = role)
     }
 
     fun updateCollege(college: String) {
         _user.value = _user.value.copy(college = college)
     }
 
-    fun updateProfilePhotoUri(uri: String?) {
-        _user.value = _user.value.copy(profilePhotoUri = uri)
+    fun processIdCard(uri: Uri, context: Context) {
+        viewModelScope.launch {
+            try {
+                val (role, name, faceBitmap) = extractInfoFromIdCard(uri, context)
+                val faceUri = saveBitmapToFile(faceBitmap, context)
+                _user.value = _user.value.copy(
+                    username = name,
+                    role = role,
+                    profilePhotoUri = faceUri.toString()
+                )
+                _isVerified.value = true
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to process ID card: ${e.message}"
+            }
+        }
     }
 
     fun validateRegistration(confirmPassword: String, semester: Int): Boolean {
@@ -119,9 +141,7 @@ class RegisterViewModel(
                         email = _user.value.email,
                         password = _user.value.password,
                         role = _user.value.role,
-                        college = _user.value.college,
-                       // profilePhotoUri = _user.value.profilePhotoUri,
-                        //semester = semester
+                        college = _user.value.college
                     )
                 )
                 if (response.isSuccessful && response.body()?.success == true) {

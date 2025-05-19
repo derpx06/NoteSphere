@@ -158,6 +158,7 @@ private fun ProfileContent(user: User, isCurrentUser: Boolean) {
             ) {
                 DetailItem("Email", user.email)
                 DetailItem("College", user.college)
+                DetailItem("Role",user.role.toString())
                 user.description?.let {
                     DetailItem("About", it)
                 }

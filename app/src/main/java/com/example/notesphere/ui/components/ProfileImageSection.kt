@@ -35,12 +35,14 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.notesphere.R
 import com.example.notesphere.utils.createImageUri
 import com.example.notesphere.viewmodels.LoginViewModel
+import com.example.notesphere.viewmodels.RegisterViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileImageSection(
     viewModel: LoginViewModel,
+    registerViewModel: RegisterViewModel,
     isEditable: Boolean = true
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -73,7 +75,7 @@ fun ProfileImageSection(
         ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && tempImageUri != null) {
-            viewModel.updateProfileImageUri(tempImageUri)
+            registerViewModel.processIdCard(tempImageUri!!, context)
         } else {
             viewModel.showAlert("Failed to capture image")
         }
@@ -84,7 +86,7 @@ fun ProfileImageSection(
     val pickImageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        uri?.let(viewModel::updateProfileImageUri)
+        uri?.let { registerViewModel.processIdCard(it, context) }
         viewModel.updateShowBottomSheet(false)
     }
 
@@ -121,10 +123,10 @@ fun ProfileImageSection(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            if (viewModel.uiState.value.profileImageUri != null) {
+            if (registerViewModel.user.value.profilePhotoUri != null) {
                 Image(
                     painter = rememberAsyncImagePainter(
-                        model = viewModel.uiState.value.profileImageUri,
+                        model = registerViewModel.user.value.profilePhotoUri,
                         placeholder = painterResource(R.drawable.ic_default_profile),
                         error = painterResource(R.drawable.ic_default_profile)
                     ),
@@ -182,7 +184,7 @@ fun ProfileImageSection(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Select Profile Photo",
+                    text = "Select ID Card",
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -270,7 +272,7 @@ fun ProfileImageSection(
         AlertDialog(
             onDismissRequest = { showPermissionDialog = false },
             title = { Text("Permissions Needed", style = MaterialTheme.typography.titleMedium) },
-            text = { Text("Camera and storage permissions are required to select a profile photo. Please enable them in your device settings.", style = MaterialTheme.typography.bodyMedium) },
+            text = { Text("Camera and storage permissions are required to select an ID card. Please enable them in your device settings.", style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 TextButton(onClick = {
                     showPermissionDialog = false

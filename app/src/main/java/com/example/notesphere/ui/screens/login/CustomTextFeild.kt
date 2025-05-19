@@ -19,6 +19,7 @@ fun CustomTextField(
     label: String,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    enabled: Boolean = true,
     trailingIcon: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
@@ -30,6 +31,7 @@ fun CustomTextField(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         isError = isError,
+        enabled = enabled,
         trailingIcon = trailingIcon,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
@@ -39,7 +41,10 @@ fun CustomTextField(
             errorBorderColor = MaterialTheme.colorScheme.error,
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            errorContainerColor = MaterialTheme.colorScheme.surface
+            errorContainerColor = MaterialTheme.colorScheme.surface,
+            disabledBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            disabledLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
         ),
         textStyle = MaterialTheme.typography.bodyLarge
     )
