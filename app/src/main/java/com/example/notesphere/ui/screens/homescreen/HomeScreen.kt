@@ -1,25 +1,15 @@
 package com.example.notesphere.ui.screens.notes
 
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -52,25 +42,20 @@ import com.example.notesphere.data.Note
 import com.example.notesphere.utils.AuthManager
 import com.example.notesphere.utils.ViewModelFactory
 import com.example.notesphere.utils.formatDate
-import com.example.notesphere.viewmodels.NotesViewModel
+import com.google.accompanist.pager.*
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlinx.coroutines.launch
 
 enum class SortOption {
     TITLE_ASC, TITLE_DESC, DATE_ASC, DATE_DESC, POPULARITY
 }
 
-private fun parseDate(isoDate: String): Date? = try {
-    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }.parse(isoDate)
-} catch (e: Exception) {
-    null
+enum class FilterType {
+    TITLE, TOPIC, AUTHOR
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalPagerApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val viewModel: NotesViewModel = viewModel(factory = ViewModelFactory(LocalContext.current))
@@ -79,13 +64,15 @@ fun HomeScreen(navController: NavController) {
     val errorMessage by viewModel.errorMessage
     val userId by viewModel.userId
     val context = LocalContext.current
+    val pagerState = rememberPagerState()
+    val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf<FilterType?>(null) }
     var sortOption by remember { mutableStateOf(SortOption.DATE_DESC) }
     var showSortMenu by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
-    // Show toast for errors
     LaunchedEffect(errorMessage) {
         if (errorMessage.isNotEmpty()) {
             Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
@@ -93,220 +80,275 @@ fun HomeScreen(navController: NavController) {
     }
 
     val filteredNotes = notes.filter {
-        it.title.contains(searchQuery, ignoreCase = true) ||
-                it.subject.contains(searchQuery, ignoreCase = true)
+        when (selectedFilter) {
+            FilterType.TITLE -> it.title.contains(searchQuery, ignoreCase = true)
+            FilterType.TOPIC -> it.topics.any { topic -> 
+                topic.contains(searchQuery, ignoreCase = true)
+            }
+            FilterType.AUTHOR -> it.user.username.contains(searchQuery, ignoreCase = true)
+            null -> it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.subject.contains(searchQuery, ignoreCase = true) ||
+                    it.topics.any { topic -> topic.contains(searchQuery, ignoreCase = true) } ||
+                    it.user.username.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     val sortedNotes = when (sortOption) {
         SortOption.TITLE_ASC -> filteredNotes.sortedBy { it.title }
         SortOption.TITLE_DESC -> filteredNotes.sortedByDescending { it.title }
-        SortOption.DATE_ASC -> filteredNotes.sortedBy { parseDate(it.createdAt) }
-        SortOption.DATE_DESC -> filteredNotes.sortedByDescending { parseDate(it.createdAt) }
+        SortOption.DATE_ASC -> filteredNotes.sortedBy { it.createdAt }
+        SortOption.DATE_DESC -> filteredNotes.sortedByDescending { it.createdAt }
         SortOption.POPULARITY -> filteredNotes.sortedByDescending { it.stars }
     }
 
     Scaffold(
         floatingActionButton = {
-            var isFabAnimating by remember { mutableStateOf(false) }
-            val fabRotation by animateFloatAsState(
-                targetValue = if (isFabAnimating) 360f else 0f,
-                animationSpec = tween(350),
-                finishedListener = { isFabAnimating = false },
-                label = "FAB Rotation"
-            )
-            val interactionSource = remember { MutableInteractionSource() }
-            val isPressed by interactionSource.collectIsPressedAsState()
-            val scale by animateFloatAsState(
-                targetValue = if (isPressed) 0.95f else 1f,
-                animationSpec = tween(150),
-                label = "FAB Scale"
+            FloatingActionButton(
+                onClick = { navController.navigate("addNote") },
+                modifier = Modifier.padding(bottom = 64.dp),
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, "Add Note")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            SearchBar(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                focusRequester = focusRequester,
+                sortOption = sortOption,
+                onSortOptionChange = { sortOption = it },
+                showSortMenu = showSortMenu,
+                onShowSortMenuChange = { showSortMenu = it },
+                navController = navController,
+                userId = userId
             )
 
-            FloatingActionButton(
-                onClick = {
-                    isFabAnimating = true
-                    navController.navigate("addNote")
-                },
-                modifier = Modifier
-                    .size(64.dp)
-                    .scale(scale)
-                    .rotate(fabRotation)
-                    .shadow(10.dp, CircleShape),
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                interactionSource = interactionSource
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Note",
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "NoteSphere",
-                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
+            FilterChips(
+                selectedFilter = selectedFilter,
+                onFilterSelected = { selectedFilter = it }
+            )
+
+            HorizontalPager(
+                count = 2,
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    0 -> MainContent(
+                        sortedNotes = sortedNotes,
+                        isLoading = isLoading,
+                        errorMessage = errorMessage,
+                        onRetry = { viewModel.fetchNotes() },
+                        navController = navController,
+                        viewModel = viewModel
                     )
-                },
-                actions = {
-                    IconButton(onClick = {
-                        if (userId != null) {
-                            navController.navigate("profile/$userId")
-                        } else {
-                            navController.navigate("login")
-                        }
-                    }) {
+                    1 -> WorkspaceScreen()
+                }
+            }
+
+            HorizontalPagerIndicator(
+                pagerState = pagerState,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(16.dp),
+                activeColor = MaterialTheme.colorScheme.primary,
+                inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+    sortOption: SortOption,
+    onSortOptionChange: (SortOption) -> Unit,
+    showSortMenu: Boolean,
+    onShowSortMenuChange: (Boolean) -> Unit,
+    navController: NavController,
+    userId: String?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
+            placeholder = { Text(stringResource(R.string.search_notes)) },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                AnimatedVisibility(
+                    visible = searchQuery.isNotEmpty(),
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
+                ) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
                         Icon(
-                            Icons.Default.AccountCircle,
-                            contentDescription = stringResource(R.string.profile),
-                            modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.clear)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.primary
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            )
+        )
+
+        Box {
+            IconButton(
+                onClick = { onShowSortMenuChange(true) },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Icon(
+                    Icons.Default.Sort,
+                    contentDescription = stringResource(R.string.sort),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+
+            DropdownMenu(
+                expanded = showSortMenu,
+                onDismissRequest = { onShowSortMenuChange(false) }
+            ) {
+                SortOption.values().forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(getSortOptionLabel(option)) },
+                        onClick = {
+                            onSortOptionChange(option)
+                            onShowSortMenuChange(false)
+                        }
+                    )
+                }
+            }
+        }
+
+        IconButton(
+            onClick = {
+                if (userId != null) {
+                    navController.navigate("profile/$userId")
+                } else {
+                    navController.navigate("login")
+                }
+            },
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = stringResource(R.string.profile),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+fun FilterChips(
+    selectedFilter: FilterType?,
+    onFilterSelected: (FilterType?) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(FilterType.values()) { filter ->
+            FilterChip(
+                selected = selectedFilter == filter,
+                onClick = { onFilterSelected(if (selectedFilter == filter) null else filter) },
+                label = { Text(getFilterLabel(filter)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         }
-    ) { padding ->
-        SwipeRefresh(
-            state = rememberSwipeRefreshState(isRefreshing = isLoading),
-            onRefresh = { viewModel.fetchNotes() }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surface,
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
-                            )
-                        )
-                    )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .shadow(4.dp, RoundedCornerShape(16.dp)),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            placeholder = {
-                                Text(
-                                    stringResource(R.string.search_notes),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            trailingIcon = {
-                                AnimatedVisibility(
-                                    visible = searchQuery.isNotEmpty(),
-                                    enter = fadeIn(tween(250)),
-                                    exit = fadeOut(tween(250))
-                                ) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.clear),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                            ),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { focusRequester.freeFocus() })
-                        )
-                    }
+    }
+}
 
-                    IconButton(
-                        onClick = { showSortMenu = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                    ) {
-                        Icon(
-                            Icons.Default.Sort,
-                            contentDescription = stringResource(R.string.sort),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = showSortMenu,
-                        onDismissRequest = { showSortMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
-                    ) {
-                        val sortOptions = listOf(
-                            SortOption.TITLE_ASC to stringResource(R.string.title_asc),
-                            SortOption.TITLE_DESC to stringResource(R.string.title_desc),
-                            SortOption.DATE_ASC to stringResource(R.string.date_asc),
-                            SortOption.DATE_DESC to stringResource(R.string.date_desc),
-                            SortOption.POPULARITY to "By Popularity"
-                        )
-                        sortOptions.forEach { (option, text) ->
-                            DropdownMenuItem(
-                                text = { Text(text, style = MaterialTheme.typography.bodyMedium) },
-                                onClick = {
-                                    sortOption = option
-                                    showSortMenu = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    when {
-                        isLoading -> LoadingState()
-                        errorMessage.isNotEmpty() && notes.isEmpty() -> ErrorState(errorMessage) { viewModel.fetchNotes() }
-                        sortedNotes.isEmpty() -> EmptyState()
-                        else -> NotesGrid(sortedNotes, navController, viewModel)
-                    }
-                }
+@Composable
+fun MainContent(
+    sortedNotes: List<Note>,
+    isLoading: Boolean,
+    errorMessage: String,
+    onRetry: () -> Unit,
+    navController: NavController,
+    viewModel: NotesViewModel
+) {
+    SwipeRefresh(
+        state = rememberSwipeRefreshState(isLoading),
+        onRefresh = onRetry
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                isLoading -> LoadingState()
+                errorMessage.isNotEmpty() && sortedNotes.isEmpty() -> ErrorState(errorMessage, onRetry)
+                sortedNotes.isEmpty() -> EmptyState()
+                else -> NotesGrid(sortedNotes, navController, viewModel)
             }
         }
     }
+}
+
+@Composable
+fun WorkspaceScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Workspace Coming Soon",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+private fun getSortOptionLabel(option: SortOption): String = when (option) {
+    SortOption.TITLE_ASC -> "Title (A-Z)"
+    SortOption.TITLE_DESC -> "Title (Z-A)"
+    SortOption.DATE_ASC -> "Oldest First"
+    SortOption.DATE_DESC -> "Newest First"
+    SortOption.POPULARITY -> "Most Popular"
+}
+
+private fun getFilterLabel(filter: FilterType): String = when (filter) {
+    FilterType.TITLE -> "Title"
+    FilterType.TOPIC -> "Topic"
+    FilterType.AUTHOR -> "Author"
 }
 
 @Composable
@@ -459,7 +501,6 @@ private fun NoteCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
-            // Safely handle null user
             val authorText = note.user?.let { "By ${it.username} (${it.college})" } ?: "By Unknown User"
             Text(
                 text = authorText,
