@@ -459,8 +459,10 @@ private fun NoteCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
+            // Safely handle null user
+            val authorText = note.user?.let { "By ${it.username} (${it.college})" } ?: "By Unknown User"
             Text(
-                text = "By ${note.user.username} (${note.user.college})",
+                text = authorText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -120,7 +120,7 @@ class RegisterViewModel(
                         password = _user.value.password,
                         role = _user.value.role,
                         college = _user.value.college,
-                       // profilePhotoUri = _user.value.profilePhotoUri,
+                        // profilePhotoUri = _user.value.profilePhotoUri,
                         //semester = semester
                     )
                 )

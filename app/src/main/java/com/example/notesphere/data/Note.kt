@@ -13,14 +13,13 @@ data class Note(
     val subject: String,
     val topics: List<String>,
     val filePath: List<FilePath>,
-    val user: User,
+    val user: User,  // Non-nullable User
     val stars: Int,
-    val starredBy: List<String>, // List of user IDs as strings
+    val starredBy: List<String>,
     val createdAt: String,
     val updatedAt: String,
     val semester: Int
 )
-
 data class FilePath(
     val path: String,
     val description: String
