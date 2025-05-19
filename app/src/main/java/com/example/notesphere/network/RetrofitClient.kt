@@ -1,3 +1,4 @@
+
 package com.example.notesphere.network
 
 import com.example.notesphere.utils.AuthManager
@@ -9,7 +10,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
-    internal const val BASE_URL = "https://continent-ken-concerns-especially.trycloudflare.com/"
+    internal const val BASE_URL = "https://directly-brief-changed-registered.trycloudflare.com/"
 
     val publicApiService: ApiService by lazy {
         val logging = HttpLoggingInterceptor().apply {

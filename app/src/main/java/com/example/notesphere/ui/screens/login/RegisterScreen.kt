@@ -16,12 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,16 +46,16 @@ import com.example.notesphere.viewmodels.RegisterViewModel
 fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
     val viewModel: RegisterViewModel = viewModel()
-    val loginViewModel: LoginViewModel = viewModel(
-        factory = ViewModelFactory(context = context)
-    )
-    Log.d("RegisterScreen", "ViewModels created: RegisterViewModel=$viewModel, LoginViewModel=$loginViewModel")
+    val loginViewModel: LoginViewModel = viewModel(factory = ViewModelFactory(context = context))
     val user by viewModel.user
     val errorMessage by viewModel.errorMessage
     val isLoading by viewModel.isLoading
+    val isVerified by viewModel.isVerified
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordError by remember { mutableStateOf(false) }
+    var semester by remember { mutableStateOf("") }
+    var semesterError by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var isVisible by remember { mutableStateOf(false) }
@@ -74,7 +69,7 @@ fun RegisterScreen(navController: NavController) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.03f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
                         MaterialTheme.colorScheme.background
                     )
                 )
@@ -166,9 +161,13 @@ fun RegisterScreen(navController: NavController) {
                             }
 
                             item {
-                                ProfileImageSection(viewModel = loginViewModel, isEditable = true)
+                                ProfileImageSection(
+                                    viewModel = loginViewModel,
+                                    registerViewModel = viewModel,
+                                    isEditable = !isVerified
+                                )
                                 Text(
-                                    text = "Profile photo is optional",
+                                    text = "Get verified using an ID card",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -180,6 +179,7 @@ fun RegisterScreen(navController: NavController) {
                                     onValueChange = { viewModel.updateUsername(it) },
                                     label = "Username",
                                     isError = user.username.isNotEmpty() && user.username.length < 3,
+                                    enabled = !isVerified,
                                     trailingIcon = {
                                         if (user.username.isNotEmpty() && user.username.length < 3) {
                                             Icon(
@@ -280,7 +280,8 @@ fun RegisterScreen(navController: NavController) {
                             item {
                                 RoleDropdown(
                                     selectedRole = user.role,
-                                    onRoleSelected = { viewModel.updateRole(it) }
+                                    onRoleSelected = { viewModel.updateRole(it) },
+                                    isVerified = isVerified
                                 )
                             }
 
@@ -300,6 +301,28 @@ fun RegisterScreen(navController: NavController) {
                                         }
                                     },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                                )
+                            }
+
+                            item {
+                                CustomTextField(
+                                    value = semester,
+                                    onValueChange = {
+                                        semester = it
+                                        semesterError = it.isNotEmpty() && (it.toIntOrNull() == null || it.toInt() < 1 || it.toInt() > 8)
+                                    },
+                                    label = "Semester (1-8)",
+                                    isError = semesterError,
+                                    trailingIcon = {
+                                        if (semesterError) {
+                                            Icon(
+                                                imageVector = Icons.Default.Error,
+                                                contentDescription = "Invalid semester",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                                 )
                             }
 
@@ -327,8 +350,9 @@ fun RegisterScreen(navController: NavController) {
                                     onClick = {
                                         keyboardController?.hide()
                                         Log.d("RegisterScreen", "Sign Up clicked")
-                                        if (viewModel.validateRegistration(confirmPassword)) {
-                                            viewModel.register {
+                                        val semesterInt = semester.toIntOrNull() ?: 0
+                                        if (viewModel.validateRegistration(confirmPassword, semesterInt)) {
+                                            viewModel.register(semesterInt) {
                                                 Log.d("RegisterScreen", "Registration successful, attempting login")
                                                 loginViewModel.updateEmail(user.email)
                                                 loginViewModel.updatePassword(user.password)
@@ -414,7 +438,8 @@ fun RegisterScreen(navController: NavController) {
 @Composable
 fun RoleDropdown(
     selectedRole: String,
-    onRoleSelected: (String) -> Unit
+    onRoleSelected: (String) -> Unit,
+    isVerified: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
     val roles = listOf("Student", "Teacher", "Other")
@@ -439,26 +464,45 @@ fun RoleDropdown(
                 .fillMaxWidth()
                 .menuAnchor(),
             shape = RoundedCornerShape(12.dp),
+            enabled = !isVerified,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                disabledBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                disabledContainerColor = MaterialTheme.colorScheme.surface
             ),
             textStyle = MaterialTheme.typography.bodyLarge
         )
+
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
             roles.forEach { role ->
+                val isSelectable = role == "Other" // Only "Other" is selectable
+
                 DropdownMenuItem(
-                    text = { Text(role, style = MaterialTheme.typography.bodyLarge) },
-                    onClick = {
-                        onRoleSelected(role)
-                        expanded = false
+                    text = {
+                        Text(
+                            role,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = if (!isSelectable)
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+                        )
                     },
+                    onClick = {
+                        if (isSelectable) {
+                            onRoleSelected(role)
+                            expanded = false
+                        }
+                    },
+                    enabled = isSelectable,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 )
             }

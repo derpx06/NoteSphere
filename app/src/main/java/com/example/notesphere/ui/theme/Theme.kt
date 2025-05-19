@@ -23,21 +23,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
-// Color definitions
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
 val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
-val PrimaryLight = Color(0xFF6200EA) // Vibrant purple for light theme
-val PrimaryDark = Color(0xFFBB86FC) // Lighter purple for dark theme
-val SecondaryLight = Color(0xFF03DAC5) // Teal accent for light theme
-val SecondaryDark = Color(0xFF018786) // Darker teal for dark theme
-val GradientStart = Color(0xFF6200EA) // Purple start for gradient
-val GradientEnd = Color(0xFF03DAC5) // Teal end for gradient
+val PrimaryLight = Color(0xFF6200EA)
+val PrimaryDark = Color(0xFFBB86FC)
+val SecondaryLight = Color(0xFF03DAC5)
+val SecondaryDark = Color(0xFF018786)
+val GradientStart = Color(0xFF6200EA)
+val GradientEnd = Color(0xFF03DAC5)
 
-// Color schemes
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
     secondary = SecondaryDark,
@@ -77,10 +75,10 @@ private val TransparentColorScheme = lightColorScheme(
     secondary = SecondaryLight,
     tertiary = Purple80,
     background = Color.Transparent,
-    surface = Color.White.copy(alpha = 0.9f), // Semi-transparent surface for readability
+    surface = Color.White.copy(alpha = 0.9f),
     onPrimary = Color.White,
     onSecondary = Color.Black,
-    onBackground = Color.Black, // High contrast for text
+    onBackground = Color.Black,
     onSurface = Color.Black,
     error = Color(0xFFB00020),
     surfaceVariant = Color.White.copy(alpha = 0.85f),
@@ -89,7 +87,6 @@ private val TransparentColorScheme = lightColorScheme(
     errorContainer = Color(0xFFFDE7E9).copy(alpha = 0.9f)
 )
 
-// Typography
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Default,
@@ -198,7 +195,6 @@ val Typography = Typography(
     )
 )
 
-// Shapes
 private val Shapes = androidx.compose.material3.Shapes(
     extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
     small = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
@@ -207,7 +203,6 @@ private val Shapes = androidx.compose.material3.Shapes(
     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
 )
 
-// Gradient brush
 val GradientBrush = Brush.verticalGradient(
     colors = listOf(GradientStart, GradientEnd)
 )
@@ -229,7 +224,6 @@ fun NoteSphereTheme(
         else -> LightColorScheme
     }
 
-    // Set system bars color for edge-to-edge
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

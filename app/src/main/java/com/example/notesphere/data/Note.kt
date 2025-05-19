@@ -13,24 +13,28 @@ data class Note(
     val subject: String,
     val topics: List<String>,
     val filePath: List<FilePath>,
-    val user: User,
+    val user: User,  // Non-nullable User
     val stars: Int,
-    val starredBy: List<User>,
+    val starredBy: List<String>,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val semester: Int
 )
-
 data class FilePath(
     val path: String,
     val description: String
 )
 
 data class User(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id") val id: String,
     val username: String,
     val email: String,
     val college: String,
-    val role: String? = null // Optional to handle cases where role is absent
+    val role: String? = null,
+    val profilePhotoPath: String? = null,
+    val description: String? = null,
+    val stars: Int = 0,
+    val semester: Int? = null
 )
 
 data class RegisterRequest(
@@ -63,8 +67,23 @@ data class ProfilePhotoResponse(
     val message: String,
     val profilePhotoPath: String?
 )
+
 data class NoteDetailsResponse(
     val success: Boolean,
     val note: Note,
-    val downloadUrls: List<String>
+    val downloadUrls: List<String>,
+    val viewUrls: List<String> // Added to match server response
+)
+
+data class ProfileResponse(
+    val success: Boolean,
+    val user: User?,
+    val message: String?
+)
+
+data class UpdateProfileRequest(
+    val username: String? = null,
+    val college: String? = null,
+    val description: String? = null,
+    val semester: Int? = null
 )

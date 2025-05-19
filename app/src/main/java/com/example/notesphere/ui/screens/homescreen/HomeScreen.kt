@@ -1,18 +1,17 @@
 package com.example.notesphere.ui.screens.notes
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -60,10 +59,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 enum class SortOption {
-    TITLE_ASC, TITLE_DESC, DATE_ASC, DATE_DESC
+    TITLE_ASC, TITLE_DESC, DATE_ASC, DATE_DESC, POPULARITY
 }
 
-private fun parseDate(isoDate: String) = try {
+private fun parseDate(isoDate: String): Date? = try {
     SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }.parse(isoDate)
@@ -74,17 +73,24 @@ private fun parseDate(isoDate: String) = try {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    val context = LocalContext.current
-    val viewModel: NotesViewModel = viewModel(factory = ViewModelFactory(context))
-    val authManager = AuthManager(context)
+    val viewModel: NotesViewModel = viewModel(factory = ViewModelFactory(LocalContext.current))
     val notes by viewModel.notes
     val isLoading by viewModel.isLoading
     val errorMessage by viewModel.errorMessage
+    val userId by viewModel.userId
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
     var sortOption by remember { mutableStateOf(SortOption.DATE_DESC) }
     var showSortMenu by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+
+    // Show toast for errors
+    LaunchedEffect(errorMessage) {
+        if (errorMessage.isNotEmpty()) {
+            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+        }
+    }
 
     val filteredNotes = notes.filter {
         it.title.contains(searchQuery, ignoreCase = true) ||
@@ -96,6 +102,7 @@ fun HomeScreen(navController: NavController) {
         SortOption.TITLE_DESC -> filteredNotes.sortedByDescending { it.title }
         SortOption.DATE_ASC -> filteredNotes.sortedBy { parseDate(it.createdAt) }
         SortOption.DATE_DESC -> filteredNotes.sortedByDescending { parseDate(it.createdAt) }
+        SortOption.POPULARITY -> filteredNotes.sortedByDescending { it.stars }
     }
 
     Scaffold(
@@ -126,7 +133,7 @@ fun HomeScreen(navController: NavController) {
                     .rotate(fabRotation)
                     .shadow(10.dp, CircleShape),
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 interactionSource = interactionSource
             ) {
@@ -141,9 +148,7 @@ fun HomeScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        text = authManager.getUserInfo()?.username?.let {
-                            "Welcome, ${it.take(12)}${if (it.length > 12) "..." else ""}"
-                        } ?: "NoteSphere",
+                        text = "NoteSphere",
                         style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -151,19 +156,25 @@ fun HomeScreen(navController: NavController) {
                     )
                 },
                 actions = {
-                    IconButton(onClick = { /* Profile action */ }) {
+                    IconButton(onClick = {
+                        if (userId != null) {
+                            navController.navigate("profile/$userId")
+                        } else {
+                            navController.navigate("login")
+                        }
+                    }) {
                         Icon(
                             Icons.Default.AccountCircle,
                             contentDescription = stringResource(R.string.profile),
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    actionIconContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -180,25 +191,24 @@ fun HomeScreen(navController: NavController) {
                         Brush.verticalGradient(
                             colors = listOf(
                                 MaterialTheme.colorScheme.surface,
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.05f)
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
                             )
                         )
                     )
             ) {
-                // Search and Sort Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .shadow(6.dp, RoundedCornerShape(24.dp)),
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+                            .shadow(4.dp, RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer
                     ) {
                         OutlinedTextField(
                             value = searchQuery,
@@ -209,7 +219,7 @@ fun HomeScreen(navController: NavController) {
                             placeholder = {
                                 Text(
                                     stringResource(R.string.search_notes),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
@@ -217,8 +227,7 @@ fun HomeScreen(navController: NavController) {
                                 Icon(
                                     Icons.Default.Search,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             trailingIcon = {
@@ -227,136 +236,70 @@ fun HomeScreen(navController: NavController) {
                                     enter = fadeIn(tween(250)),
                                     exit = fadeOut(tween(250))
                                 ) {
-                                    val clearInteractionSource = remember { MutableInteractionSource() }
-                                    val isClearPressed by clearInteractionSource.collectIsPressedAsState()
-                                    val clearScale by animateFloatAsState(
-                                        targetValue = if (isClearPressed) 0.9f else 1f,
-                                        animationSpec = tween(150),
-                                        label = "Clear Scale"
-                                    )
-                                    IconButton(
-                                        onClick = { searchQuery = "" },
-                                        modifier = Modifier.scale(clearScale),
-                                        interactionSource = clearInteractionSource
-                                    ) {
+                                    IconButton(onClick = { searchQuery = "" }) {
                                         Icon(
                                             Icons.Default.Close,
                                             contentDescription = stringResource(R.string.clear),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(24.dp)
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                cursorColor = MaterialTheme.colorScheme.primary
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline
                             ),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { focusRequester.freeFocus() })
                         )
                     }
 
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                        tooltip = {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shadowElevation = 2.dp
-                            ) {
-                                Text(
-                                    text = "Sort Notes",
-                                    modifier = Modifier.padding(8.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        },
-                        state = rememberTooltipState()
+                    IconButton(
+                        onClick = { showSortMenu = true },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                     ) {
-                        var isSortAnimating by remember { mutableStateOf(false) }
-                        val sortRotation by animateFloatAsState(
-                            targetValue = if (isSortAnimating) 360f else 0f,
-                            animationSpec = tween(350),
-                            finishedListener = { isSortAnimating = false },
-                            label = "Sort Rotation"
+                        Icon(
+                            Icons.Default.Sort,
+                            contentDescription = stringResource(R.string.sort),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        val sortInteractionSource = remember { MutableInteractionSource() }
-                        val isSortPressed by sortInteractionSource.collectIsPressedAsState()
-                        val sortScale by animateFloatAsState(
-                            targetValue = if (isSortPressed) 0.95f else 1f,
-                            animationSpec = tween(150),
-                            label = "Sort Scale"
-                        )
-                        IconButton(
-                            onClick = {
-                                isSortAnimating = true
-                                showSortMenu = true
-                            },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .scale(sortScale)
-                                .rotate(sortRotation)
-                                .clip(CircleShape)
-                                .shadow(4.dp, CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        ) {
-                            Icon(
-                                Icons.Default.Sort,
-                                contentDescription = stringResource(R.string.sort),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
                     }
 
                     DropdownMenu(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface)
-                            .shadow(4.dp)
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
                     ) {
-                        listOf(
+                        val sortOptions = listOf(
                             SortOption.TITLE_ASC to stringResource(R.string.title_asc),
                             SortOption.TITLE_DESC to stringResource(R.string.title_desc),
                             SortOption.DATE_ASC to stringResource(R.string.date_asc),
-                            SortOption.DATE_DESC to stringResource(R.string.date_desc)
-                        ).forEach { (option, text) ->
+                            SortOption.DATE_DESC to stringResource(R.string.date_desc),
+                            SortOption.POPULARITY to "By Popularity"
+                        )
+                        sortOptions.forEach { (option, text) ->
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = text,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                                        color = if (sortOption == option) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        }
-                                    )
-                                },
+                                text = { Text(text, style = MaterialTheme.typography.bodyMedium) },
                                 onClick = {
                                     sortOption = option
                                     showSortMenu = false
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                }
                             )
                         }
                     }
                 }
 
-                // Content Area
                 Box(modifier = Modifier.fillMaxSize()) {
                     when {
                         isLoading -> LoadingState()
-                        errorMessage.isNotEmpty() -> ErrorState(errorMessage) { viewModel.fetchNotes() }
+                        errorMessage.isNotEmpty() && notes.isEmpty() -> ErrorState(errorMessage) { viewModel.fetchNotes() }
                         sortedNotes.isEmpty() -> EmptyState()
                         else -> NotesGrid(sortedNotes, navController, viewModel)
                     }
@@ -368,27 +311,13 @@ fun HomeScreen(navController: NavController) {
 
 @Composable
 private fun LoadingState() {
-    val scale by rememberInfiniteTransition(label = "Progress Scale").animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Progress Scale"
-    )
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
-            modifier = Modifier
-                .size(48.dp)
-                .scale(scale),
-            color = MaterialTheme.colorScheme.primary,
-            strokeWidth = 4.dp
+            modifier = Modifier.size(48.dp),
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -398,50 +327,19 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(8.dp, RoundedCornerShape(24.dp))
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    Icons.Default.Error,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.error
-                )
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-                FilledTonalButton(
-                    onClick = onRetry,
-                    modifier = Modifier
-                        .height(40.dp)
-                        .padding(top = 8.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.retry),
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
-                    )
-                }
-            }
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        FilledTonalButton(onClick = onRetry) {
+            Text("Retry")
         }
     }
 }
@@ -451,44 +349,20 @@ private fun EmptyState() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(8.dp, RoundedCornerShape(24.dp))
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    Icons.Default.DocumentScanner,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = stringResource(R.string.no_notes_found),
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.create_or_check_back),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
+        Text(
+            text = stringResource(R.string.no_notes_found),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = stringResource(R.string.create_or_check_back),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -499,10 +373,8 @@ private fun NotesGrid(
     viewModel: NotesViewModel
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(1),
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
+        columns = GridCells.Adaptive(minSize = 300.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -510,8 +382,7 @@ private fun NotesGrid(
             NoteCard(
                 note = note,
                 onStarClick = { viewModel.starNote(note.id) },
-                onClick = { navController.navigate("noteDetails/${note.id}") },
-                index = notes.indexOf(note)
+                onClick = { navController.navigate("noteDetails/${note.id}") }
             )
         }
     }
@@ -521,12 +392,10 @@ private fun NotesGrid(
 private fun NoteCard(
     note: Note,
     onStarClick: () -> Unit,
-    onClick: () -> Unit,
-    index: Int
+    onClick: () -> Unit
 ) {
-    var isVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { isVisible = true }
-
+    val context = LocalContext.current
+    val userId by remember(context) { mutableStateOf(AuthManager(context).getUserId()) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -535,119 +404,105 @@ private fun NoteCard(
         label = "Card Scale"
     )
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(350, delayMillis = index * 100)) +
-                slideInVertically(tween(350, delayMillis = index * 100)),
-        exit = fadeOut(tween(350)) + slideOutVertically(tween(350))
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .scale(scale),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Card(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick
-                )
-                .scale(scale)
-                .shadow(8.dp, RoundedCornerShape(24.dp)),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-            ),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = note.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 22.sp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    var isStarAnimating by remember { mutableStateOf(false) }
-                    val starRotation by animateFloatAsState(
-                        targetValue = if (isStarAnimating) 360f else 0f,
-                        animationSpec = tween(350),
-                        finishedListener = { isStarAnimating = false },
-                        label = "Star Rotation"
-                    )
-                    val starInteractionSource = remember { MutableInteractionSource() }
-                    val isStarPressed by starInteractionSource.collectIsPressedAsState()
-                    val starScale by animateFloatAsState(
-                        targetValue = if (isStarPressed) 0.95f else 1f,
-                        animationSpec = tween(150),
-                        label = "Star Scale"
-                    )
-                    IconButton(
-                        onClick = {
-                            isStarAnimating = true
-                            onStarClick()
-                        },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .scale(starScale)
-                            .rotate(starRotation),
-                        interactionSource = starInteractionSource
-                    ) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = stringResource(R.string.star_note),
-                            tint = if (note.starredBy.isNotEmpty()) {
-                                Color.Yellow
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-
                 Text(
-                    text = note.subject,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = note.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                IconButton(
+                    onClick = {
+                        if (userId == null) {
+                            Toast.makeText(context, "Please log in to star notes", Toast.LENGTH_SHORT).show()
+                        } else {
+                            onStarClick()
+                        }
+                    }
                 ) {
-                    Text(
-                        text = "By ${note.user.username}",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = formatDate(note.createdAt),
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 14.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "Star",
+                        tint = if (userId != null && note.starredBy.contains(userId)) Color.Yellow else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
+            }
+            Text(
+                text = note.subject,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            // Safely handle null user
+            val authorText = note.user?.let { "By ${it.username} (${it.college})" } ?: "By Unknown User"
+            Text(
+                text = authorText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Semester: ${note.semester}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
                     text = note.topics.joinToString(", "),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = formatDate(note.createdAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color.Yellow,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "${note.stars} Stars",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

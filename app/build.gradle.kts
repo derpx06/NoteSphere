@@ -79,6 +79,9 @@ dependencies {
     //swipe feature
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.36.0")
     //DataStore
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1") // Or the latest stable version
+    implementation ("com.google.mlkit:text-recognition:16.0.0")
+    implementation ("com.google.mlkit:face-detection:16.1.6")
     implementation ("com.google.dagger:hilt-android:2.44")
     implementation ("androidx.hilt:hilt-navigation-compose:1.0.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")

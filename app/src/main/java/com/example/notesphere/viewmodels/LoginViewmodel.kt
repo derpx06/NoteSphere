@@ -13,6 +13,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.notesphere.data.LoginRequest
 import com.example.notesphere.network.ApiService
 import com.example.notesphere.utils.AuthManager
+import com.example.notesphere.utils.extractInfoFromIdCard
+import com.example.notesphere.utils.saveBitmapToFile
 import com.example.notesphere.utils.uriToMultipart
 import kotlinx.coroutines.launch
 
@@ -20,6 +22,8 @@ data class UiState(
     val email: String = "",
     val password: String = "",
     val profileImageUri: String? = null,
+    val username: String = "",
+    val role: String = "",
     val isEmailValid: Boolean = true,
     val errorMessage: String = "",
     val alertMessage: String = "",
@@ -53,12 +57,36 @@ class LoginViewModel(
         _uiState.value = _uiState.value.copy(password = password)
     }
 
-    fun updateProfileImageUri(uri: Uri?) {
-        if (uri != null && uri.toString().isNotEmpty()) {
-            _uiState.value = _uiState.value.copy(profileImageUri = uri.toString())
-        } else {
-            _uiState.value = _uiState.value.copy(profileImageUri = null)
+    fun updateProfileImageUri(uri: Uri?, context: Context) {
+        if (uri == null || uri.toString().isEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                profileImageUri = null,
+                username = "",
+                role = ""
+            )
             showAlert("Invalid image URI")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val (role, name, faceBitmap) = extractInfoFromIdCard(uri, context)
+                val faceUri = saveBitmapToFile(faceBitmap, context)
+                _uiState.value = _uiState.value.copy(
+                    profileImageUri = faceUri.toString(),
+                    username = name,
+                    role = role
+                )
+                showAlert("ID card processed successfully")
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    profileImageUri = null,
+                    username = "",
+                    role = ""
+                )
+                showAlert("Failed to process ID card: ${e.message}")
+                Log.e("LoginViewModel", "ID card processing failed", e)
+            }
         }
     }
 
@@ -93,14 +121,17 @@ class LoginViewModel(
                 val response = apiService.login(
                     LoginRequest(
                         email = _uiState.value.email,
-                        password = _uiState.value.password
+                        password = _uiState.value.password,
+                        //username = _uiState.value.username,
+                        //role = _uiState.value.role
                     )
                 )
                 Log.d("LoginViewModel", "Login response: code=${response.code()}, body=${response.body()}")
                 if (response.isSuccessful && response.body()?.success == true) {
                     val token = response.body()?.token
-                    if (token != null) {
-                        authManager.saveToken(token)
+                    val user = response.body()?.user
+                    if (token != null && user != null) {
+                        authManager.saveAuthState(token, user)
                         Log.d("LoginViewModel", "Token saved: $token")
                         _uiState.value.profileImageUri?.let { uriString ->
                             uploadProfilePhoto(context, Uri.parse(uriString))
@@ -114,9 +145,9 @@ class LoginViewModel(
                     } else {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = "Login failed: No token received"
+                            errorMessage = "Login failed: No token or user data received"
                         )
-                        Log.e("LoginViewModel", "No token in response")
+                        Log.e("LoginViewModel", "No token or user in response")
                     }
                 } else {
                     val errorMsg = response.body()?.message ?: "Login failed: ${response.code()}"
@@ -145,9 +176,12 @@ class LoginViewModel(
             try {
                 Log.d("LoginViewModel", "Uploading profile photo: uri=$uri")
                 val multipart = uriToMultipart(context, uri)
-                val response = apiService.uploadProfilePhoto("Bearer $token", multipart)
+                val response = apiService.uploadProfilePhoto(multipart, "Bearer $token")
                 Log.d("LoginViewModel", "Photo upload response: code=${response.code()}, body=${response.body()}")
                 if (response.isSuccessful && response.body()?.success == true) {
+                    response.body()?.profilePhotoPath?.let {
+                        authManager.updateProfileInfo(profilePhotoPath = it)
+                    }
                     showAlert("Profile photo uploaded successfully")
                 } else {
                     val errorMsg = response.body()?.message ?: "Failed to upload profile photo"
@@ -182,6 +216,16 @@ class LoginViewModel(
             _uiState.value.password.length < 6 -> {
                 _uiState.value = _uiState.value.copy(errorMessage = "Password must be at least 6 characters")
                 Log.w("LoginViewModel", "Validation failed: Password too short")
+                false
+            }
+            _uiState.value.username.isEmpty() && _uiState.value.profileImageUri != null -> {
+                _uiState.value = _uiState.value.copy(errorMessage = "Username required from ID card")
+                Log.w("LoginViewModel", "Validation failed: Username required")
+                false
+            }
+            _uiState.value.role.isEmpty() && _uiState.value.profileImageUri != null -> {
+                _uiState.value = _uiState.value.copy(errorMessage = "Role required from ID card")
+                Log.w("LoginViewModel", "Validation failed: Role required")
                 false
             }
             else -> {
