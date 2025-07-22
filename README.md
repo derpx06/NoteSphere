@@ -63,23 +63,7 @@ A key feature of this project is the ID Verification process during sign-up, whi
 
     Profile Management: Users can view and manage their profile information.
 
-🛠️ Tech Stack & Tools
 
-    Programming Language: Kotlin
-
-    Architecture: MVVM (Model-View-ViewModel)
-
-    Backend: Firebase
-
-        Authentication: For managing user sign-up and login.
-
-        Firestore: As the real-time NoSQL database for storing notes.
-
-        Storage: For storing ID verification documents.
-
-    UI/UX: XML Layouts, Material Design Components.
-
-    IDE: Android Studio
 
 ⚙️ Getting Started
 
@@ -87,8 +71,6 @@ To get a local copy up and running, follow these simple steps.
 Prerequisites
 
     Android Studio Hedgehog or later.
-
-    A Firebase project.
 
 Installation
 
@@ -102,13 +84,7 @@ Installation
 
         Click on File > Open and select the cloned project directory.
 
-    Connect to Firebase:
-
-        Go to Tools > Firebase in Android Studio.
-
-        Connect your app to your Firebase project.
-
-        Download the google-services.json file from your Firebase project settings and place it in the app directory.
+  
 
     Build and Run:
 
